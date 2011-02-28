@@ -5,7 +5,7 @@
 #include <QStandardItemModel>
 #include <QSortFilterProxyModel>
 #include "stdinthread.h"
-#include <stdio.h>
+#include <cstdio>
 
 Dialog::Dialog(QWidget *parent) :
     QDialog(parent),
@@ -17,15 +17,12 @@ Dialog::Dialog(QWidget *parent) :
     /* model */
     m_model = new QStandardItemModel(ui->listWidget);
 
-    /* read stdin (non-blocking) */
-    m_stdin_thread = new StdinThread(this);
-    m_stdin_thread->setModel(m_model);
-
     /* filtering */
     m_proxy = new QSortFilterProxyModel(this);
     //m_proxy->thread()->setPriority(QThread::IdlePriority);
     m_proxy->setDynamicSortFilter(true);
     m_proxy->setSourceModel(m_model);
+    m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     ui->listWidget->setModel(m_proxy);
 
     connect( ui->listWidget->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
@@ -33,24 +30,34 @@ Dialog::Dialog(QWidget *parent) :
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
              this, SLOT(setFilter(QString)) );
 
-    /* start reading stdin */
+    thread()->setPriority(QThread::HighestPriority);
+
+    /* read stdin (non-blocking) */
+    m_stdin_thread = new StdinThread(m_model, this);
     m_stdin_thread->start();
     m_stdin_thread->setPriority(QThread::IdlePriority);
 }
 
 Dialog::~Dialog()
 {
-    m_stdin_thread->terminate();
+    m_stdin_thread->close();
+    m_stdin_thread->quit();
     m_stdin_thread->wait(500);
+    m_stdin_thread->terminate();
     delete ui;
-    QApplication::exit(m_exit_code);
+
+    exit(m_exit_code);
 }
 
 void Dialog::setFilter(const QString &currentText)
 {
     QString filter = currentText;
+    /*
     filter.replace(' ', ".*");
     m_proxy->setFilterRegExp( QRegExp(filter, Qt::CaseInsensitive) );
+    */
+    filter.replace(' ', "*");
+    m_proxy->setFilterWildcard(filter);
 }
 
 void Dialog::itemSelected(const QModelIndex &index, const QModelIndex &)
@@ -94,6 +101,8 @@ void Dialog::keyPressEvent(QKeyEvent *e)
             break;
         case Qt::Key_Down:
         case Qt::Key_Up:
+        case Qt::Key_PageDown:
+        case Qt::Key_PageUp:
             ui->listWidget->setFocus();
             break;
         case Qt::Key_Left:

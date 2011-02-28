@@ -11,11 +11,6 @@ public:
 
 protected:
     bool event(QEvent *e);
-
-signals:
-
-public slots:
-
 };
 
 #endif // LISTWIDGET_H

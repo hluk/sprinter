@@ -5,7 +5,10 @@
 ListWidget::ListWidget(QWidget *parent) :
     QListView(parent)
 {
-    setBatchSize(15);
+    /* list in batch mode flickers
+    setLayoutMode(Batched);
+    setBatchSize(20);
+    */
     setUniformItemSizes(true);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

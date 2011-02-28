@@ -4,22 +4,22 @@
 #include <QThread>
 #include <QTimer>
 #include <QMutex>
+#include <QLinkedList>
 class QStandardItemModel;
 
 class StdinThread : public QThread
 {
     Q_OBJECT
 public:
-    explicit StdinThread(QObject *parent = 0);
+    explicit StdinThread(QStandardItemModel *model, QObject *parent = 0);
     void run();
-    void close();
-    void setModel(QStandardItemModel *model) {m_model = model;}
+    void close() {m_close = true;}
 
 private:
     QStandardItemModel *m_model;
-    QMutex m_model_mutex;
+    volatile bool m_close;
 
-    QStringList *m_new_items;
+    QLinkedList<QByteArray*> *m_new_items;
     QTimer m_new_items_t;
     QMutex m_new_items_mutex;
 
