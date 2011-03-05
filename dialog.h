@@ -7,6 +7,7 @@ class QSortFilterProxyModel;
 class QModelIndex;
 class ItemModel;
 class StdinThread;
+class QItemSelection;
 
 namespace Ui {
     class Dialog;
@@ -36,7 +37,8 @@ protected:
 
 public slots:
     void setFilter(const QString &currentText);
-    void itemSelected(const QModelIndex &index, const QModelIndex &prev);
+    void itemSelected(const QItemSelection &selected,
+                      const QItemSelection &deselected);
 };
 
 #endif // DIALOG_H

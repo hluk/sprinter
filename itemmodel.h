@@ -2,8 +2,10 @@
 #define ITEMMODEL_H
 
 #include <QAbstractListModel>
+
 class QStringList;
 class QTimer;
+class QSize;
 
 class ItemModel : public QAbstractListModel
 {
@@ -20,11 +22,14 @@ public:
     void fetchMore(const QModelIndex &parent = QModelIndex());
     Qt::ItemFlags flags(const QModelIndex &index) const;
 
+    void setItemSize(QSize &size);
+
 private:
     int m_count;
     QStringList *m_items;
     QTimer *m_fetch_t;
     QTimer *m_update_t;
+    QSize *m_item_size;
 
 signals:
 

@@ -27,8 +27,9 @@ Dialog::Dialog(QWidget *parent) :
     m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     ui->listWidget->setModel(m_proxy);
 
-    connect( ui->listWidget->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
-             this, SLOT(itemSelected(QModelIndex,QModelIndex)) );
+    connect( ui->listWidget->selectionModel(),
+             SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
+             this, SLOT(itemSelected(QItemSelection,QItemSelection)) );
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
              this, SLOT(setFilter(QString)) );
 
@@ -58,7 +59,9 @@ void Dialog::setWrapping(bool enable)
 
 void Dialog::setGridSize(int w, int h)
 {
-    ui->listWidget->setGridSize( QSize(w, h) );
+    QSize size(w, h);
+    ui->listWidget->setGridSize(size);
+    m_model->setItemSize(size);
 }
 
 void Dialog::setFilter(const QString &currentText)
@@ -72,20 +75,19 @@ void Dialog::setFilter(const QString &currentText)
     m_proxy->setFilterWildcard(filter);
 }
 
-void Dialog::itemSelected(const QModelIndex &index, const QModelIndex &)
+void Dialog::itemSelected(const QItemSelection &,
+                          const QItemSelection &)
 {
     QLineEdit *edit = ui->lineEdit;
     if ( edit->hasFocus() )
         return;
 
-    QModelIndexList indeces;
-    indeces = ui->listWidget->selectionModel()->selectedIndexes();
-    if ( indeces.indexOf(index) == -1 )
-        indeces.append(index);
+    QModelIndexList indexes =
+            ui->listWidget->selectionModel()->selectedIndexes();
 
     QStringList captions;
-    foreach (QModelIndex index, indeces) {
-        QVariant data = m_model->data( m_proxy->mapToSource(index) );
+    foreach (QModelIndex index, indexes) {
+        QVariant data = m_proxy->data(index);
         if ( data.isValid() )
             captions.append( data.toString() );
     }
@@ -99,8 +101,8 @@ void Dialog::keyPressEvent(QKeyEvent *e)
 
     int key = e->key();
 
-    /* CTRL */
     if (e->modifiers() & Qt::ControlModifier) {
+        /* CTRL */
         switch(key){
         case Qt::Key_L:
             edit = ui->lineEdit;

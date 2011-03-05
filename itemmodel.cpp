@@ -8,7 +8,8 @@
 
 ItemModel::ItemModel(QObject *parent) :
     QAbstractListModel(parent),
-    m_count(0)
+    m_count(0),
+    m_item_size(NULL)
 {
     m_items = new QStringList();
 
@@ -33,6 +34,8 @@ ItemModel::~ItemModel()
 {
     m_fetch_t->stop();
     m_update_t->stop();
+    if (m_item_size)
+        delete m_item_size;
 
     delete m_items;
 }
@@ -56,9 +59,18 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const
         else
             return qApp->palette().alternateBase();
         */
+    } else if (role == Qt::SizeHintRole && m_item_size){
+        return *m_item_size;
     }
 
     return QVariant();
+}
+
+void ItemModel::setItemSize(QSize &size)
+{
+    if (m_item_size)
+        delete m_item_size;
+    m_item_size = new QSize(size);
 }
 
 bool ItemModel::canFetchMore(const QModelIndex &) const

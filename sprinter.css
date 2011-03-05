@@ -20,7 +20,7 @@ QListView {
 }
 
 QListView::item {
-    border: 3px solid transparent;
+    background-color: #ddd;
 }
 
 QListView::item:hover {
