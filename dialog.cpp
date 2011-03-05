@@ -47,7 +47,12 @@ Dialog::~Dialog()
 
 void Dialog::setLabel(const QString &text)
 {
-    ui->label->setText(text);
+    if (text.isEmpty()) {
+        ui->label->hide();
+    } else {
+        ui->label->setText(text);
+        ui->label->show();
+    }
 }
 
 void Dialog::setWrapping(bool enable)
@@ -67,12 +72,22 @@ void Dialog::setGridSize(int w, int h)
 void Dialog::setFilter(const QString &currentText)
 {
     QString filter = currentText;
+
+    /* filter items */
     /*
     filter.replace(' ', ".*");
     m_proxy->setFilterRegExp( QRegExp(filter, Qt::CaseInsensitive) );
     */
     filter.replace(' ', "*");
     m_proxy->setFilterWildcard(filter);
+
+    /* select first item that starts with matched text */
+    QModelIndexList list =
+            m_proxy->match( m_proxy->index(0,0), Qt::DisplayRole, filter, 1,
+                            Qt::MatchStartsWith);
+    if ( !list.isEmpty() ) {
+        ui->listWidget->setCurrentIndex( list.at(0) );
+    }
 }
 
 void Dialog::itemSelected(const QItemSelection &,
@@ -97,7 +112,10 @@ void Dialog::itemSelected(const QItemSelection &,
 void Dialog::keyPressEvent(QKeyEvent *e)
 {
     QString text;
-    QLineEdit *edit;
+    QLineEdit *edit = ui->lineEdit;
+    ListWidget *view = ui->listWidget;
+    QModelIndex index;
+    int row;
 
     int key = e->key();
 
@@ -105,7 +123,6 @@ void Dialog::keyPressEvent(QKeyEvent *e)
         /* CTRL */
         switch(key){
         case Qt::Key_L:
-            edit = ui->lineEdit;
             edit->setFocus();
             edit->selectAll();
             break;
@@ -119,36 +136,47 @@ void Dialog::keyPressEvent(QKeyEvent *e)
             break;
         case Qt::Key_Enter:
         case Qt::Key_Return:
-            text = ui->lineEdit->text();
+            text = edit->text();
             printf( text.toLocal8Bit().constData() );
             m_exit_code = 0;
             close();
             break;
         case Qt::Key_Up:
         case Qt::Key_PageUp:
-            if ( ui->listWidget->currentIndex().row() == 0 ) {
-                ui->lineEdit->setFocus();
+            if ( view->currentIndex().row() == 0 ) {
+                edit->setFocus();
                 break;
             }
         case Qt::Key_Down:
         case Qt::Key_PageDown:
-            ui->listWidget->setFocus();
+            if ( edit->hasFocus() ) {
+                row = 0;
+            } else if (key == Qt::Key_Down || key == Qt::Key_PageDown) {
+                row = view->currentIndex().row() + 1;
+            } else {
+                row = view->currentIndex().row() - 1;
+            }
+            index = m_proxy->index(row, 0);
+            if ( index.isValid() ) {
+                view->setCurrentIndex(index);
+                edit->setText( m_proxy->data(index).toString() );
+                view->setFocus();
+            }
             break;
         case Qt::Key_Left:
-            if ( !ui->listWidget->isWrapping() ) {
-                ui->lineEdit->setCursorPosition(0);
-                ui->lineEdit->setFocus();
+            if ( !view->isWrapping() ) {
+                edit->setCursorPosition(0);
+                edit->setFocus();
             }
             break;
         case Qt::Key_Right:
-            if ( !ui->listWidget->isWrapping() ) {
-                ui->lineEdit->setFocus();
+            if ( !view->isWrapping() ) {
+                edit->setFocus();
             }
             break;
         default:
             text = e->text();
             if ( !text.isEmpty() ) {
-                edit = ui->lineEdit;
                 text.prepend( edit->text() );
                 edit->setText(text);
                 edit->setFocus();
