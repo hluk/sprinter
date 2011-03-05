@@ -12,11 +12,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         dialog.cpp \
-    stdinthread.cpp \
-    listwidget.cpp
+    listwidget.cpp \
+    itemmodel.cpp
 
 HEADERS  += dialog.h \
-    stdinthread.h \
-    listwidget.h
+    listwidget.h \
+    itemmodel.h
 
 FORMS    += dialog.ui

@@ -1,0 +1,56 @@
+/* http://doc.qt.nokia.com/stylesheet-examples.html */
+QLineEdit, QListView, QDialog {
+    font-family: Envy Code R, Consolas, Bitstream Vera Sans Mono, monospace;
+    border: 1px solid transparent;
+    background-color: #ddd;
+}
+
+QLineEdit {
+    /*border-radius: 4px;*/
+    text-align: center;
+}
+
+QLineEdit:focus {
+    background-color: white;
+    border: 1px solid #000;
+}
+
+QListView {
+    color: #333;
+}
+
+QListView::item {
+    border: 3px solid transparent;
+}
+
+QListView::item:hover {
+    background-color: rgba(255,255,100,100);
+}
+
+QListView::item:selected {
+    background-color: rgba(255,255,100,150);
+    color: black;
+}
+
+/* scrollbars */
+QScrollBar {
+    background-color: #aaa;
+}
+QScrollBar::handle {
+}
+
+QScrollBar:vertical {
+    width: 8px;
+}
+QScrollBar::handle:vertical {
+    min-height: 16px;
+}
+
+QScrollBar:horizontal {
+    height: 8px;
+}
+QScrollBar::handle:horizontal {
+    min-width: 16px;
+}
+
+

@@ -5,14 +5,17 @@
 ListWidget::ListWidget(QWidget *parent) :
     QListView(parent)
 {
-    /* list in batch mode flickers
-    setLayoutMode(Batched);
-    setBatchSize(20);
-    */
+    /* list in batch mode flickers */
+    //setLayoutMode(Batched);
+    //setBatchSize(20);
+
     setUniformItemSizes(true);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    //setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setTextElideMode(Qt::ElideMiddle);
+    setSelectionMode(QAbstractItemView::ExtendedSelection);
 }
 
 bool ListWidget::event(QEvent *e)

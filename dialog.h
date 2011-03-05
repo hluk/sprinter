@@ -5,7 +5,7 @@
 
 class QSortFilterProxyModel;
 class QModelIndex;
-class QStandardItemModel;
+class ItemModel;
 class StdinThread;
 
 namespace Ui {
@@ -20,10 +20,14 @@ public:
     explicit Dialog(QWidget *parent = 0);
     ~Dialog();
 
+    void setLabel(const QString &text);
+    void setWrapping(bool enable);
+    void setGridSize(int w, int h);
+
 private:
     Ui::Dialog *ui;
     StdinThread *m_stdin_thread;
-    QStandardItemModel *m_model;
+    ItemModel *m_model;
     QSortFilterProxyModel *m_proxy;
     int m_exit_code;
 

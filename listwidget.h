@@ -1,7 +1,7 @@
 #ifndef LISTWIDGET_H
 #define LISTWIDGET_H
 
-#include <QListWidget>
+#include <QListView>
 
 class ListWidget : public QListView
 {

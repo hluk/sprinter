@@ -2,24 +2,26 @@
 #include "ui_dialog.h"
 #include <QIODevice>
 #include <QKeyEvent>
-#include <QStandardItemModel>
 #include <QSortFilterProxyModel>
-#include "stdinthread.h"
+#include <QDebug>
 #include <cstdio>
+#include "itemmodel.h"
 
 Dialog::Dialog(QWidget *parent) :
-    QDialog(parent),
+        QDialog(parent,
+                Qt::WindowStaysOnTopHint |
+                /*Qt::X11BypassWindowManagerHint |*/
+                Qt::FramelessWindowHint),
     ui(new Ui::Dialog),
     m_exit_code(1)
 {
     ui->setupUi(this);
 
     /* model */
-    m_model = new QStandardItemModel(ui->listWidget);
+    m_model = new ItemModel(ui->listWidget);
 
     /* filtering */
     m_proxy = new QSortFilterProxyModel(this);
-    //m_proxy->thread()->setPriority(QThread::IdlePriority);
     m_proxy->setDynamicSortFilter(true);
     m_proxy->setSourceModel(m_model);
     m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -30,23 +32,33 @@ Dialog::Dialog(QWidget *parent) :
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
              this, SLOT(setFilter(QString)) );
 
-    thread()->setPriority(QThread::HighestPriority);
+    //thread()->setPriority(QThread::HighestPriority);
 
-    /* read stdin (non-blocking) */
-    m_stdin_thread = new StdinThread(m_model, this);
-    m_stdin_thread->start();
-    m_stdin_thread->setPriority(QThread::IdlePriority);
+    setLabel("");
 }
 
 Dialog::~Dialog()
 {
-    m_stdin_thread->close();
-    m_stdin_thread->quit();
-    m_stdin_thread->wait(500);
-    m_stdin_thread->terminate();
     delete ui;
 
     exit(m_exit_code);
+}
+
+void Dialog::setLabel(const QString &text)
+{
+    ui->label->setText(text);
+}
+
+void Dialog::setWrapping(bool enable)
+{
+    ui->listWidget->setHorizontalScrollBarPolicy(
+            enable ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff );
+    ui->listWidget->setWrapping(enable);
+}
+
+void Dialog::setGridSize(int w, int h)
+{
+    ui->listWidget->setGridSize( QSize(w, h) );
 }
 
 void Dialog::setFilter(const QString &currentText)
@@ -63,9 +75,21 @@ void Dialog::setFilter(const QString &currentText)
 void Dialog::itemSelected(const QModelIndex &index, const QModelIndex &)
 {
     QLineEdit *edit = ui->lineEdit;
-    QStandardItem *item = m_model->itemFromIndex( m_proxy->mapToSource(index) );
-    if ( item && !edit->hasFocus() )
-        edit->setText( item->text() );
+    if ( edit->hasFocus() )
+        return;
+
+    QModelIndexList indeces;
+    indeces = ui->listWidget->selectionModel()->selectedIndexes();
+    if ( indeces.indexOf(index) == -1 )
+        indeces.append(index);
+
+    QStringList captions;
+    foreach (QModelIndex index, indeces) {
+        QVariant data = m_model->data( m_proxy->mapToSource(index) );
+        if ( data.isValid() )
+            captions.append( data.toString() );
+    }
+    edit->setText( captions.join("\n") );
 }
 
 void Dialog::keyPressEvent(QKeyEvent *e)
@@ -74,7 +98,6 @@ void Dialog::keyPressEvent(QKeyEvent *e)
     QLineEdit *edit;
 
     int key = e->key();
-
 
     /* CTRL */
     if (e->modifiers() & Qt::ControlModifier) {
@@ -99,18 +122,26 @@ void Dialog::keyPressEvent(QKeyEvent *e)
             m_exit_code = 0;
             close();
             break;
-        case Qt::Key_Down:
         case Qt::Key_Up:
-        case Qt::Key_PageDown:
         case Qt::Key_PageUp:
+            if ( ui->listWidget->currentIndex().row() == 0 ) {
+                ui->lineEdit->setFocus();
+                break;
+            }
+        case Qt::Key_Down:
+        case Qt::Key_PageDown:
             ui->listWidget->setFocus();
             break;
         case Qt::Key_Left:
-            ui->lineEdit->setCursorPosition(0);
-            ui->lineEdit->setFocus();
+            if ( !ui->listWidget->isWrapping() ) {
+                ui->lineEdit->setCursorPosition(0);
+                ui->lineEdit->setFocus();
+            }
             break;
         case Qt::Key_Right:
-            ui->lineEdit->setFocus();
+            if ( !ui->listWidget->isWrapping() ) {
+                ui->lineEdit->setFocus();
+            }
             break;
         default:
             text = e->text();
