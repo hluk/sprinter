@@ -16,6 +16,12 @@
   <property name="windowTitle">
    <string>sprinter</string>
   </property>
+  <property name="windowOpacity">
+   <double>1.000000000000000</double>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="margin">
     <number>4</number>

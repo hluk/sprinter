@@ -3,6 +3,7 @@
 #include <QIODevice>
 #include <QKeyEvent>
 #include <QSortFilterProxyModel>
+#include <QCompleter>
 #include <QDebug>
 #include <cstdio>
 #include "itemmodel.h"
@@ -36,6 +37,12 @@ Dialog::Dialog(QWidget *parent) :
     //thread()->setPriority(QThread::HighestPriority);
 
     setLabel("");
+
+    /* completion */
+    QCompleter *completer = new QCompleter(m_model, this);
+    completer->setCompletionMode(QCompleter::InlineCompletion);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    ui->lineEdit->setCompleter(completer);
 }
 
 Dialog::~Dialog()
@@ -90,6 +97,14 @@ void Dialog::setFilter(const QString &currentText)
     }
 }
 
+void Dialog::hideList(bool hide)
+{
+    ui->listWidget->setHidden(hide);
+    ui->lineEdit->completer()->setCompletionMode(
+            hide ? QCompleter::PopupCompletion : QCompleter::InlineCompletion);
+    adjustSize();
+}
+
 void Dialog::itemSelected(const QItemSelection &,
                           const QItemSelection &)
 {
@@ -141,14 +156,33 @@ void Dialog::keyPressEvent(QKeyEvent *e)
             m_exit_code = 0;
             close();
             break;
+        case Qt::Key_Tab:
+            if ( ui->listWidget->isHidden() ) {
+                edit->completer()->setCompletionPrefix( edit->text() );
+                edit->completer()->complete();
+            }
+            break;
         case Qt::Key_Up:
         case Qt::Key_PageUp:
-            if ( view->currentIndex().row() == 0 ) {
+            if ( view->isVisible() && view->currentIndex().row() == 0 ) {
                 edit->setFocus();
                 break;
             }
         case Qt::Key_Down:
         case Qt::Key_PageDown:
+            /* list is hidden - same behaviour as command line */
+            /* TODO: restore original text when row == -1*/
+            if ( ui->listWidget->isHidden() ) {
+                row = ui->lineEdit->completer()->currentRow();
+                if (key == Qt::Key_Down || key == Qt::Key_PageDown)
+                    --row;
+                else
+                    ++row;
+                ui->lineEdit->completer()->setCurrentRow(row);
+                index = ui->lineEdit->completer()->currentIndex();
+                edit->setText( m_model->data(index).toString() );
+                break;
+            }
             if ( edit->hasFocus() ) {
                 row = 0;
             } else if (key == Qt::Key_Down || key == Qt::Key_PageDown) {

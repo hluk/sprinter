@@ -49,7 +49,7 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const
 {
     int row = index.row();
 
-    if (role == Qt::DisplayRole)
+    if (role == Qt::DisplayRole || role == Qt::EditRole)
         return m_items->at(row);
     else if (role == Qt::BackgroundRole) {
         return qApp->palette().base();

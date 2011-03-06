@@ -24,6 +24,7 @@ public:
     void setLabel(const QString &text);
     void setWrapping(bool enable);
     void setGridSize(int w, int h);
+    void hideList(bool hide);
 
 private:
     Ui::Dialog *ui;
