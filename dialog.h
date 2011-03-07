@@ -6,7 +6,6 @@
 class QSortFilterProxyModel;
 class QModelIndex;
 class ItemModel;
-class StdinThread;
 class QItemSelection;
 
 namespace Ui {
@@ -24,22 +23,31 @@ public:
     void setLabel(const QString &text);
     void setWrapping(bool enable);
     void setGridSize(int w, int h);
+    void setStrict(bool enable) {m_strict = enable;}
+    void saveOutput(QStringList *output) {m_output = output;}
     void hideList(bool hide);
+
+    bool eventFilter(QObject *obj, QEvent *event);
 
 private:
     Ui::Dialog *ui;
-    StdinThread *m_stdin_thread;
     ItemModel *m_model;
     QSortFilterProxyModel *m_proxy;
+    QString m_original_text;
     int m_exit_code;
+    bool m_strict;
+    QStringList *m_output;
 
 protected:
-    void keyPressEvent(QKeyEvent *e);
+    void closeEvent(QCloseEvent *);
 
 public slots:
     void setFilter(const QString &currentText);
     void itemSelected(const QItemSelection &selected,
                       const QItemSelection &deselected);
+
+private slots:
+    void textEdited(const QString &text);
 };
 
 #endif // DIALOG_H

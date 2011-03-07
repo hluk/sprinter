@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 #include <QSortFilterProxyModel>
 #include <QCompleter>
+#include <QProcess>
 #include <QDebug>
 #include <cstdio>
 #include "itemmodel.h"
@@ -14,25 +15,30 @@ Dialog::Dialog(QWidget *parent) :
                 /*Qt::X11BypassWindowManagerHint |*/
                 Qt::FramelessWindowHint),
     ui(new Ui::Dialog),
-    m_exit_code(1)
+    m_exit_code(1),
+    m_strict(false),
+    m_output(NULL)
 {
     ui->setupUi(this);
 
+    ui->lineEdit->installEventFilter(this);
+    ui->listView->installEventFilter(this);
+
     /* model */
-    m_model = new ItemModel(ui->listWidget);
+    m_model = new ItemModel(ui->listView);
 
     /* filtering */
     m_proxy = new QSortFilterProxyModel(this);
     m_proxy->setDynamicSortFilter(true);
     m_proxy->setSourceModel(m_model);
     m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    ui->listWidget->setModel(m_proxy);
+    ui->listView->setModel(m_proxy);
 
-    connect( ui->listWidget->selectionModel(),
+    connect( ui->listView->selectionModel(),
              SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
              this, SLOT(itemSelected(QItemSelection,QItemSelection)) );
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
-             this, SLOT(setFilter(QString)) );
+             this, SLOT(textEdited(QString)) );
 
     //thread()->setPriority(QThread::HighestPriority);
 
@@ -42,14 +48,26 @@ Dialog::Dialog(QWidget *parent) :
     QCompleter *completer = new QCompleter(m_model, this);
     completer->setCompletionMode(QCompleter::InlineCompletion);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setMaxVisibleItems(20);
     ui->lineEdit->setCompleter(completer);
 }
 
 Dialog::~Dialog()
 {
     delete ui;
+}
 
-    exit(m_exit_code);
+void Dialog::closeEvent(QCloseEvent *)
+{
+    if (!m_exit_code && m_output)
+        m_output->append( ui->lineEdit->text().split('\n') );
+    qApp->exit(m_exit_code);
+}
+
+void Dialog::textEdited(const QString &text)
+{
+    setFilter(text);
+    m_original_text = text;
 }
 
 void Dialog::setLabel(const QString &text)
@@ -64,15 +82,15 @@ void Dialog::setLabel(const QString &text)
 
 void Dialog::setWrapping(bool enable)
 {
-    ui->listWidget->setHorizontalScrollBarPolicy(
+    ui->listView->setHorizontalScrollBarPolicy(
             enable ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff );
-    ui->listWidget->setWrapping(enable);
+    ui->listView->setWrapping(enable);
 }
 
 void Dialog::setGridSize(int w, int h)
 {
     QSize size(w, h);
-    ui->listWidget->setGridSize(size);
+    ui->listView->setGridSize(size);
     m_model->setItemSize(size);
 }
 
@@ -93,16 +111,17 @@ void Dialog::setFilter(const QString &currentText)
             m_proxy->match( m_proxy->index(0,0), Qt::DisplayRole, filter, 1,
                             Qt::MatchStartsWith);
     if ( !list.isEmpty() ) {
-        ui->listWidget->setCurrentIndex( list.at(0) );
+        ui->listView->setCurrentIndex( list.at(0) );
     }
 }
 
 void Dialog::hideList(bool hide)
 {
-    ui->listWidget->setHidden(hide);
+    ui->listView->setHidden(hide);
     ui->lineEdit->completer()->setCompletionMode(
             hide ? QCompleter::PopupCompletion : QCompleter::InlineCompletion);
     adjustSize();
+    setMaximumHeight(hide ? height() : QWIDGETSIZE_MAX);
 }
 
 void Dialog::itemSelected(const QItemSelection &,
@@ -113,7 +132,7 @@ void Dialog::itemSelected(const QItemSelection &,
         return;
 
     QModelIndexList indexes =
-            ui->listWidget->selectionModel()->selectedIndexes();
+            ui->listView->selectionModel()->selectedIndexes();
 
     QStringList captions;
     foreach (QModelIndex index, indexes) {
@@ -124,11 +143,15 @@ void Dialog::itemSelected(const QItemSelection &,
     edit->setText( captions.join("\n") );
 }
 
-void Dialog::keyPressEvent(QKeyEvent *e)
+bool Dialog::eventFilter(QObject *obj, QEvent *event)
 {
+    if ( event->type() != QEvent::KeyPress )
+        return false;
+
+    QKeyEvent *e = (QKeyEvent *)event;
     QString text;
     QLineEdit *edit = ui->lineEdit;
-    ListWidget *view = ui->listWidget;
+    QListView *view = ui->listView;
     QModelIndex index;
     int row;
 
@@ -140,7 +163,7 @@ void Dialog::keyPressEvent(QKeyEvent *e)
         case Qt::Key_L:
             edit->setFocus();
             edit->selectAll();
-            break;
+            return true;
         default:
             break;
         }
@@ -148,75 +171,88 @@ void Dialog::keyPressEvent(QKeyEvent *e)
         switch(key){
         case Qt::Key_Escape:
             close();
-            break;
+            return true;
         case Qt::Key_Enter:
         case Qt::Key_Return:
+            /* submit text */
             text = edit->text();
-            printf( text.toLocal8Bit().constData() );
+            if (m_strict && m_model->items()->indexOf(text) == -1 ) {
+                return true;
+            }
+            if ( !m_output ) {
+                /* print to stdout */
+                printf( text.toLocal8Bit().constData() );
+            }
             m_exit_code = 0;
             close();
-            break;
+            return true;
         case Qt::Key_Tab:
-            if ( ui->listWidget->isHidden() ) {
+            if ( ui->listView->isHidden() ) {
                 edit->completer()->setCompletionPrefix( edit->text() );
                 edit->completer()->complete();
+                return true;
             }
             break;
         case Qt::Key_Up:
         case Qt::Key_PageUp:
-            if ( view->isVisible() && view->currentIndex().row() == 0 ) {
+            if ( obj == view && view->currentIndex().row() == 0 ) {
                 edit->setFocus();
-                break;
+                return true;
             }
         case Qt::Key_Down:
         case Qt::Key_PageDown:
-            /* list is hidden - same behaviour as command line */
-            /* TODO: restore original text when row == -1*/
-            if ( ui->listWidget->isHidden() ) {
+            /* if list is hidden - same behaviour as command line */
+            if ( ui->listView->isHidden() ) {
                 row = ui->lineEdit->completer()->currentRow();
                 if (key == Qt::Key_Down || key == Qt::Key_PageDown)
                     --row;
                 else
                     ++row;
-                ui->lineEdit->completer()->setCurrentRow(row);
-                index = ui->lineEdit->completer()->currentIndex();
-                edit->setText( m_model->data(index).toString() );
-                break;
-            }
-            if ( edit->hasFocus() ) {
-                row = 0;
-            } else if (key == Qt::Key_Down || key == Qt::Key_PageDown) {
-                row = view->currentIndex().row() + 1;
-            } else {
-                row = view->currentIndex().row() - 1;
-            }
-            index = m_proxy->index(row, 0);
-            if ( index.isValid() ) {
-                view->setCurrentIndex(index);
+                if (row == -1) {
+                    /* restore original text */
+                    edit->setText(m_original_text);
+                } else {
+                    edit->completer()->setCompletionPrefix("");
+                    edit->completer()->setCurrentRow(row);
+                    index = edit->completer()->currentIndex();
+                    edit->setText( m_model->data(index).toString() );
+                }
+                return true;
+            } else if (key == Qt::Key_Down && obj == edit) {
+                if ( !ui->listView->selectionModel()->hasSelection() )
+                    ui->listView->setCurrentIndex( m_proxy->index(0,0) );
+                ui->listView->setFocus();
+                index = view->currentIndex();
                 edit->setText( m_proxy->data(index).toString() );
-                view->setFocus();
+                return true;
             }
             break;
         case Qt::Key_Left:
-            if ( !view->isWrapping() ) {
+            if ( obj == view && !view->isWrapping() ) {
                 edit->setCursorPosition(0);
                 edit->setFocus();
+                return true;
             }
             break;
         case Qt::Key_Right:
-            if ( !view->isWrapping() ) {
+            if ( obj == view && !view->isWrapping() ) {
                 edit->setFocus();
+                return true;
             }
             break;
         default:
-            text = e->text();
-            if ( !text.isEmpty() ) {
-                text.prepend( edit->text() );
-                edit->setText(text);
-                edit->setFocus();
-                setFilter(text);
+            if (obj == view) {
+                text = e->text();
+                if ( !text.isEmpty() ) {
+                    text.prepend( edit->text() );
+                    edit->setText(text);
+                    edit->setFocus();
+                    setFilter(text);
+                    return true;
+                }
             }
             break;
         }
     }
+    return false;
 }

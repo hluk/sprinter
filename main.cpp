@@ -3,6 +3,7 @@
 #include <QFile>
 #include <cstdio>
 #include <QDebug>
+#include <cerrno>
 #include "dialog.h"
 
 /* print help and exit */
@@ -10,18 +11,72 @@ void help(int exit_code) {
     printf(
             "usage: sprinter [options]\n"
             "options:\n"
-            "  -h, --help\n"
             "  -g, --geometry    window size and position (width,height,x,y)\n"
-            "  -s, --style       stylesheet\n"
+            "  -h, --help\n      show this help"
             "  -l, --label       text input label\n"
+            "  -m, --minimal     show popup menu instead of list\n"
+            "  -o, --opacity     window opacity (value from 0.0 to 1.0)\n"
+            "  -s, --style       stylesheet\n"
+            "  -S, --strict      choose only items from stdin\n"
             "  -t, --title       title\n"
             "  -w, --wrap        wrap items\n"
             "  -z, --size        item size (width,height)\n"
-            "  -m, --minimal     show popup menu instead of list\n"
-            "  -o, --opacity     window opacity (value from 0.0 to 1.0)\n"
-            /*"  -c, --command   exec command (replace %%s with selected items)\n"*/
+            "  -c, --command     exec command on items\n"
             );
     exit(exit_code);
+}
+
+// TODO: parse %s in command string
+void parseCommand(const QString &cmd, QStringList &args)
+{
+    QString arg;
+    bool quotes = false;
+    bool dquotes = false;
+    bool escape = false;
+    bool outside = true;
+    foreach(QChar c, cmd) {
+        if ( outside ) {
+            if ( c.isSpace() )
+                continue;
+            else
+                outside = false;
+        }
+
+        /*
+        if ( c == '1' && arg.endsWith('%') ) {
+            arg.remove( arg.size()-1, 1 );
+            arg.append();
+            continue;
+        }*/
+
+        if (escape) {
+            if ( c == 'n' ) {
+                arg.append('\n');
+            } else if ( c == 't' ) {
+                arg.append('\t');
+            } else {
+                arg.append(c);
+            }
+        } else if (c == '\\') {
+            escape = true;
+        } else if (c == '\'') {
+            quotes = !quotes;
+        } else if (c == '"') {
+            dquotes = !dquotes;
+        } else if (quotes) {
+            arg.append(c);
+        } else if ( c.isSpace() ) {
+            outside = true;
+            args.append(arg);
+            arg.clear();
+        } else {
+            arg.append(c);
+        }
+    }
+    if ( !outside ) {
+        args.append(arg);
+        arg.clear();
+    }
 }
 
 QString takeArgument(QStringList &args, bool &ok) {
@@ -43,7 +98,9 @@ QString takeArgument(QStringList &args, bool &ok) {
     return arg;
 }
 
-void parseArguments(const QStringList &arguments, Dialog &dialog)
+void parseArguments(const QStringList &arguments,
+                    Dialog &dialog,
+                    QStringList &command_args)
 {
     // copy arguments
     QStringList args(arguments);
@@ -146,6 +203,13 @@ void parseArguments(const QStringList &arguments, Dialog &dialog)
             fnum = arg.toFloat(&ok);
             if (!ok && fnum > 0.0f && fnum < 1.0f) help(1);
             dialog.setWindowOpacity(fnum);
+        } else if (arg.startsWith("-S") || arg == "--strict") {
+            dialog.setStrict(true);
+        } else if (arg.startsWith("-c") || arg == "--command") {
+            arg = takeArgument(args, ok);
+            if (!ok) help(1);
+            parseCommand(arg, command_args);
+            dialog.saveOutput(&command_args);
         } else {
             help(1);
         }
@@ -154,13 +218,34 @@ void parseArguments(const QStringList &arguments, Dialog &dialog)
 
 int main(int argc, char *argv[])
 {
+    int exit_code;
+    QStringList command_args;
+
     QApplication a(argc, argv);
+    a.setQuitOnLastWindowClosed(false);
 
     Dialog dialog;
 
-    parseArguments( a.arguments(), dialog );
+    parseArguments( a.arguments(), dialog, command_args );
 
     dialog.show();
 
-    return a.exec();
+    exit_code = a.exec();
+
+    if ( !exit_code && !command_args.isEmpty() ) {
+        /* exec command */
+        QVector<char *> *qargv = new QVector<char *>;
+        foreach(QString arg, command_args) {
+            QByteArray *b = new QByteArray( arg.toLocal8Bit() );
+            qargv->append( b->data() );
+        }
+        qargv->push_back((char *)NULL);
+
+        char **new_argv = qargv->data();
+        execvp(new_argv[0], new_argv);
+        perror( strerror(errno) );
+        return errno;
+    }
+
+    return exit_code;
 }

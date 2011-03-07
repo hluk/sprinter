@@ -24,6 +24,8 @@ public:
 
     void setItemSize(QSize &size);
 
+    const QStringList *items() const {return m_items;}
+
 private:
     int m_count;
     QStringList *m_items;
