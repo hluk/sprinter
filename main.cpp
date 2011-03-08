@@ -11,17 +11,18 @@ void help(int exit_code) {
     printf(
             "usage: sprinter [options]\n"
             "options:\n"
+            "  -c, --command     exec command on items\n"
             "  -g, --geometry    window size and position (width,height,x,y)\n"
-            "  -h, --help\n      show this help"
+            "  -h, --help        show this help\n"
             "  -l, --label       text input label\n"
             "  -m, --minimal     show popup menu instead of list\n"
-            "  -o, --opacity     window opacity (value from 0.0 to 1.0)\n"
+            "  -o, --sort        sort items alphabetically\n"
             "  -s, --style       stylesheet\n"
             "  -S, --strict      choose only items from stdin\n"
             "  -t, --title       title\n"
             "  -w, --wrap        wrap items\n"
             "  -z, --size        item size (width,height)\n"
-            "  -c, --command     exec command on items\n"
+            "  --opacity     window opacity (value from 0.0 to 1.0)\n"
             );
     exit(exit_code);
 }
@@ -115,8 +116,11 @@ void parseArguments(const QStringList &arguments,
         QString arg = takeArgument(args, ok);
         if (!ok) help(1);
 
-        if (arg.startsWith("-h") || arg == "--help") {
-            help(0);
+        if (arg.startsWith("-c") || arg == "--command") {
+            arg = takeArgument(args, ok);
+            if (!ok) help(1);
+            parseCommand(arg, command_args);
+            dialog.saveOutput(&command_args);
         } else if (arg.startsWith("-g") || arg == "--geometry") {
             arg = takeArgument(args, ok);
             if (!ok) help(1);
@@ -161,6 +165,14 @@ void parseArguments(const QStringList &arguments,
                     dialog.move(pos);
                 }
             }
+        } else if (arg.startsWith("-h") || arg == "--help") {
+            help(0);
+        } else if (arg.startsWith("-l") || arg == "--label") {
+            arg = takeArgument(args, ok);
+            if (!ok) help(1);
+            dialog.setLabel(arg);
+        } else if (arg.startsWith("-o") || arg == "--sort") {
+            dialog.sortList();
         } else if (arg.startsWith("-s") || arg == "--style") {
             arg = takeArgument(args, ok);
             if (!ok) help(1);
@@ -171,10 +183,8 @@ void parseArguments(const QStringList &arguments,
 
             qApp->setStyleSheet( file.readAll() );
             file.close();
-        } else if (arg.startsWith("-l") || arg == "--label") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            dialog.setLabel(arg);
+        } else if (arg.startsWith("-S") || arg == "--strict") {
+            dialog.setStrict(true);
         } else if (arg.startsWith("-t") || arg == "--title") {
             arg = takeArgument(args, ok);
             if (!ok) help(1);
@@ -197,19 +207,12 @@ void parseArguments(const QStringList &arguments,
             dialog.setGridSize(num, num2);
         } else if (arg.startsWith("-m") || arg == "--minimal") {
             dialog.hideList(true);
-        } else if (arg.startsWith("-o") || arg == "--opacity") {
+        } else if (arg == "--opacity") {
             arg = takeArgument(args, ok);
             if (!ok) help(1);
             fnum = arg.toFloat(&ok);
             if (!ok && fnum > 0.0f && fnum < 1.0f) help(1);
             dialog.setWindowOpacity(fnum);
-        } else if (arg.startsWith("-S") || arg == "--strict") {
-            dialog.setStrict(true);
-        } else if (arg.startsWith("-c") || arg == "--command") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            parseCommand(arg, command_args);
-            dialog.saveOutput(&command_args);
         } else {
             help(1);
         }

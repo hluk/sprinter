@@ -5,6 +5,7 @@
 #include <QSortFilterProxyModel>
 #include <QCompleter>
 #include <QProcess>
+#include <QTimer>
 #include <QDebug>
 #include <cstdio>
 #include "itemmodel.h"
@@ -17,7 +18,8 @@ Dialog::Dialog(QWidget *parent) :
     ui(new Ui::Dialog),
     m_exit_code(1),
     m_strict(false),
-    m_output(NULL)
+    m_output(NULL),
+    m_hide_list(false)
 {
     ui->setupUi(this);
 
@@ -48,8 +50,9 @@ Dialog::Dialog(QWidget *parent) :
     QCompleter *completer = new QCompleter(m_model, this);
     completer->setCompletionMode(QCompleter::InlineCompletion);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
-    completer->setMaxVisibleItems(20);
     ui->lineEdit->setCompleter(completer);
+
+    ui->lineEdit->setFocus();
 }
 
 Dialog::~Dialog()
@@ -66,7 +69,7 @@ void Dialog::closeEvent(QCloseEvent *)
 
 void Dialog::textEdited(const QString &text)
 {
-    setFilter(text);
+    updateFilter(300);
     m_original_text = text;
 }
 
@@ -94,6 +97,11 @@ void Dialog::setGridSize(int w, int h)
     m_model->setItemSize(size);
 }
 
+void Dialog::sortList()
+{
+    m_proxy->sort(0);
+}
+
 void Dialog::setFilter(const QString &currentText)
 {
     QString filter = currentText;
@@ -103,7 +111,6 @@ void Dialog::setFilter(const QString &currentText)
     filter.replace(' ', ".*");
     m_proxy->setFilterRegExp( QRegExp(filter, Qt::CaseInsensitive) );
     */
-    filter.replace(' ', "*");
     m_proxy->setFilterWildcard(filter);
 
     /* select first item that starts with matched text */
@@ -115,13 +122,40 @@ void Dialog::setFilter(const QString &currentText)
     }
 }
 
+void Dialog::updateFilter(int interval)
+{
+    if ( m_hide_list )
+        return;
+
+    static QTimer *update_t = NULL;
+    if (interval <= 0) {
+        setFilter( ui->lineEdit->text() );
+        return;
+    }
+
+    if (!update_t) {
+        update_t = new QTimer();
+        update_t->setSingleShot(true);
+        connect( update_t, SIGNAL(timeout()),
+                 this, SLOT(updateFilter()) );
+    }
+
+    if ( !update_t->isActive() ) {
+        update_t->start(interval);
+    }
+}
+
 void Dialog::hideList(bool hide)
 {
+    // TODO: remeber dialog size set by user - restore height if list shown
+    m_hide_list = hide;
     ui->listView->setHidden(hide);
-    ui->lineEdit->completer()->setCompletionMode(
-            hide ? QCompleter::PopupCompletion : QCompleter::InlineCompletion);
+    //ui->lineEdit->completer()->setCompletionMode(
+    //        hide ? QCompleter::PopupCompletion : QCompleter::InlineCompletion);
+    int w = width();
     adjustSize();
-    setMaximumHeight(hide ? height() : QWIDGETSIZE_MAX);
+    resize( w, height() );
+    //setMaximumHeight(hide ? height() : QWIDGETSIZE_MAX);
 }
 
 void Dialog::itemSelected(const QItemSelection &,
@@ -140,12 +174,22 @@ void Dialog::itemSelected(const QItemSelection &,
         if ( data.isValid() )
             captions.append( data.toString() );
     }
-    edit->setText( captions.join("\n") );
+    QString text = edit->text().left( edit->selectionStart() );
+    QString text2 = captions.join("\n");
+    edit->setText(text2);
+    if ( text2.startsWith(text, Qt::CaseInsensitive) )
+        edit->setSelection( text.length(), text2.length() );
 }
 
 bool Dialog::eventFilter(QObject *obj, QEvent *event)
 {
-    if ( event->type() != QEvent::KeyPress )
+    if ( event->type() == QEvent::FocusIn ) {
+        if (obj == ui->lineEdit && m_hide_list) {
+            hideList(true);
+        }
+        return false;
+    }
+    else if ( event->type() != QEvent::KeyPress )
         return false;
 
     QKeyEvent *e = (QKeyEvent *)event;
@@ -187,56 +231,71 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             close();
             return true;
         case Qt::Key_Tab:
-            if ( ui->listView->isHidden() ) {
-                edit->completer()->setCompletionPrefix( edit->text() );
-                edit->completer()->complete();
+            if ( m_hide_list && obj == edit ) {
+                m_proxy->setFilterFixedString(
+                        edit->text().left(edit->cursorPosition()) );
+                view->show();
+                view->setCurrentIndex( m_proxy->index(0,0) );
+                view->setFocus();
+                itemSelected(QItemSelection(), QItemSelection());
                 return true;
             }
             break;
         case Qt::Key_Up:
         case Qt::Key_PageUp:
             if ( obj == view && view->currentIndex().row() == 0 ) {
+                edit->setText(m_original_text);
                 edit->setFocus();
                 return true;
             }
         case Qt::Key_Down:
         case Qt::Key_PageDown:
             /* if list is hidden - same behaviour as command line */
-            if ( ui->listView->isHidden() ) {
-                row = ui->lineEdit->completer()->currentRow();
-                if (key == Qt::Key_Down || key == Qt::Key_PageDown)
+            if (m_hide_list && obj == edit) {
+                if ( edit->text() != edit->completer()->currentCompletion() )
+                    row = -1;
+                else
+                    row = edit->completer()->currentRow();
+
+                if (key == Qt::Key_Up || key == Qt::Key_PageUp)
                     --row;
                 else
                     ++row;
-                if (row == -1) {
+
+                if (row < 0) {
                     /* restore original text */
                     edit->setText(m_original_text);
                 } else {
                     edit->completer()->setCompletionPrefix("");
                     edit->completer()->setCurrentRow(row);
                     index = edit->completer()->currentIndex();
-                    edit->setText( m_model->data(index).toString() );
+                    if ( index.isValid() )
+                        edit->setText( m_model->data(index).toString() );
                 }
                 return true;
             } else if (key == Qt::Key_Down && obj == edit) {
-                if ( !ui->listView->selectionModel()->hasSelection() )
-                    ui->listView->setCurrentIndex( m_proxy->index(0,0) );
-                ui->listView->setFocus();
+                if ( !view->selectionModel()->hasSelection() )
+                    view->setCurrentIndex( m_proxy->index(0,0) );
                 index = view->currentIndex();
-                edit->setText( m_proxy->data(index).toString() );
+                if ( index.isValid() ) {
+                    view->setFocus();
+                    edit->setText( m_proxy->data(index).toString() );
+                }
                 return true;
             }
             break;
         case Qt::Key_Left:
             if ( obj == view && !view->isWrapping() ) {
-                edit->setCursorPosition(0);
+                //edit->setCursorPosition( qMax(0, edit->selectionStart()) );
                 edit->setFocus();
+                edit->event(event);
                 return true;
             }
             break;
         case Qt::Key_Right:
             if ( obj == view && !view->isWrapping() ) {
                 edit->setFocus();
+                edit->event(event);
                 return true;
             }
             break;
@@ -244,10 +303,9 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             if (obj == view) {
                 text = e->text();
                 if ( !text.isEmpty() ) {
-                    text.prepend( edit->text() );
-                    edit->setText(text);
                     edit->setFocus();
-                    setFilter(text);
+                    edit->event(event);
+                    updateFilter(300);
                     return true;
                 }
             }

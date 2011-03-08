@@ -25,6 +25,7 @@ public:
     void setGridSize(int w, int h);
     void setStrict(bool enable) {m_strict = enable;}
     void saveOutput(QStringList *output) {m_output = output;}
+    void sortList();
     void hideList(bool hide);
 
     bool eventFilter(QObject *obj, QEvent *event);
@@ -37,6 +38,8 @@ private:
     int m_exit_code;
     bool m_strict;
     QStringList *m_output;
+    bool m_hide_list;
+    int m_width, m_height;
 
 protected:
     void closeEvent(QCloseEvent *);
@@ -48,6 +51,7 @@ public slots:
 
 private slots:
     void textEdited(const QString &text);
+    void updateFilter(int interval = 0);
 };
 
 #endif // DIALOG_H
