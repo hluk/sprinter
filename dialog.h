@@ -27,6 +27,7 @@ public:
     void saveOutput(QStringList *output) {m_output = output;}
     void sortList();
     void hideList(bool hide);
+    void popList();
 
     bool eventFilter(QObject *obj, QEvent *event);
 
@@ -39,7 +40,7 @@ private:
     bool m_strict;
     QStringList *m_output;
     bool m_hide_list;
-    int m_width, m_height;
+    int m_height;
 
 protected:
     void closeEvent(QCloseEvent *);

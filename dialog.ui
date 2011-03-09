@@ -22,17 +22,23 @@
   <property name="sizeGripEnabled">
    <bool>true</bool>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
-    <number>4</number>
-   </property>
+  <layout class="QHBoxLayout" name="horizontalLayout_2">
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="0" column="0">
+   <property name="sizeConstraint">
+    <enum>QLayout::SetMinimumSize</enum>
+   </property>
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <item>
     <layout class="QVBoxLayout" name="layout">
      <property name="spacing">
       <number>4</number>
+     </property>
+     <property name="sizeConstraint">
+      <enum>QLayout::SetMinimumSize</enum>
      </property>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout">

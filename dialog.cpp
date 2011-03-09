@@ -23,6 +23,7 @@ Dialog::Dialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    /* filter events */
     ui->lineEdit->installEventFilter(this);
     ui->listView->installEventFilter(this);
 
@@ -36,14 +37,14 @@ Dialog::Dialog(QWidget *parent) :
     m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     ui->listView->setModel(m_proxy);
 
+    /* signals & slots */
     connect( ui->listView->selectionModel(),
              SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
              this, SLOT(itemSelected(QItemSelection,QItemSelection)) );
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
              this, SLOT(textEdited(QString)) );
 
-    //thread()->setPriority(QThread::HighestPriority);
-
+    /* hide label by default */
     setLabel("");
 
     /* completion */
@@ -52,6 +53,7 @@ Dialog::Dialog(QWidget *parent) :
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     ui->lineEdit->setCompleter(completer);
 
+    /* focus edit line */
     ui->lineEdit->setFocus();
 }
 
@@ -148,14 +150,41 @@ void Dialog::updateFilter(int interval)
 void Dialog::hideList(bool hide)
 {
     // TODO: remeber dialog size set by user - restore height if list shown
+    int w = width();
+    m_height = height();
     m_hide_list = hide;
     ui->listView->setHidden(hide);
-    //ui->lineEdit->completer()->setCompletionMode(
-    //        hide ? QCompleter::PopupCompletion : QCompleter::InlineCompletion);
-    int w = width();
+
+    /* resize automatically */
+    resize(0,0);
     adjustSize();
+
+    /* restore width */
     resize( w, height() );
-    //setMaximumHeight(hide ? height() : QWIDGETSIZE_MAX);
+
+    /* set maximum height - fixed if list hidden */
+    setMaximumHeight(hide ? height() : QWIDGETSIZE_MAX);
+}
+
+void Dialog::popList()
+{
+    /* filter */
+    QString filter = ui->lineEdit->text().left(
+            ui->lineEdit->cursorPosition() );
+    m_proxy->setFilterFixedString(filter);
+    if ( !m_proxy->rowCount() )
+        return;
+
+    /* restore dialog size */
+    setMaximumHeight(QWIDGETSIZE_MAX);
+    resize( width(), m_height );
+
+    /* show and focus list */
+    QListView *view = ui->listView;
+    view->setCurrentIndex( m_proxy->index(0,0) );
+    view->show();
+    view->setFocus();
+    itemSelected( QItemSelection(), QItemSelection() );
 }
 
 void Dialog::itemSelected(const QItemSelection &,
@@ -174,7 +203,11 @@ void Dialog::itemSelected(const QItemSelection &,
         if ( data.isValid() )
             captions.append( data.toString() );
     }
-    QString text = edit->text().left( edit->selectionStart() );
+
+    int i = edit->selectionStart();
+    if (i<0)
+        i = qMax( 0, edit->cursorPosition() );
+    QString text = edit->text().left(i);
     QString text2 = captions.join("\n");
     edit->setText(text2);
     if ( text2.startsWith(text, Qt::CaseInsensitive) )
@@ -183,21 +216,21 @@ void Dialog::itemSelected(const QItemSelection &,
 
 bool Dialog::eventFilter(QObject *obj, QEvent *event)
 {
+    QLineEdit *edit = ui->lineEdit;
+    QListView *view = ui->listView;
+
     if ( event->type() == QEvent::FocusIn ) {
-        if (obj == ui->lineEdit && m_hide_list) {
+        if (obj == edit && m_hide_list && view->isVisible() ) {
             hideList(true);
         }
         return false;
-    }
-    else if ( event->type() != QEvent::KeyPress )
+    } else if ( event->type() != QEvent::KeyPress ) {
         return false;
+    }
 
     QKeyEvent *e = (QKeyEvent *)event;
     QString text;
-    QLineEdit *edit = ui->lineEdit;
-    QListView *view = ui->listView;
     QModelIndex index;
-    int row;
 
     int key = e->key();
 
@@ -231,14 +264,15 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             close();
             return true;
         case Qt::Key_Tab:
-            if ( m_hide_list && obj == edit ) {
-                m_proxy->setFilterFixedString(
-                        edit->text().left(edit->cursorPosition()) );
-                view->show();
-                view->setCurrentIndex( m_proxy->index(0,0) );
-                view->setFocus();
-                itemSelected(QItemSelection(), QItemSelection());
-                return true;
+            if (obj == edit) {
+                if ( edit->selectionStart() >= 0 ) {
+                    edit->completer()->setCompletionPrefix( edit->text() );
+                    edit->setCursorPosition( edit->text().length() );
+                    return true;
+                } else if (m_hide_list) {
+                    popList();
+                    return true;
+                }
             }
             break;
         case Qt::Key_Up:
@@ -250,28 +284,8 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             }
         case Qt::Key_Down:
         case Qt::Key_PageDown:
-            /* if list is hidden - same behaviour as command line */
             if (m_hide_list && obj == edit) {
-                if ( edit->text() != edit->completer()->currentCompletion() )
-                    row = -1;
-                else
-                    row = edit->completer()->currentRow();
-
-                if (key == Qt::Key_Up || key == Qt::Key_PageUp)
-                    --row;
-                else
-                    ++row;
-
-                if (row < 0) {
-                    /* restore original text */
-                    edit->setText(m_original_text);
-                } else {
-                    edit->completer()->setCompletionPrefix("");
-                    edit->completer()->setCurrentRow(row);
-                    index = edit->completer()->currentIndex();
-                    if ( index.isValid() )
-                        edit->setText( m_model->data(index).toString() );
-                }
+                popList();
                 return true;
             } else if (key == Qt::Key_Down && obj == edit) {
                 if ( !view->selectionModel()->hasSelection() )
@@ -286,7 +300,6 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             break;
         case Qt::Key_Left:
             if ( obj == view && !view->isWrapping() ) {
-                //edit->setCursorPosition( qMax(0, edit->selectionStart()) );
                 edit->setFocus();
                 edit->event(event);
                 return true;
