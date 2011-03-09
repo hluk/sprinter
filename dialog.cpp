@@ -43,6 +43,9 @@ Dialog::Dialog(QWidget *parent) :
              this, SLOT(itemSelected(QItemSelection,QItemSelection)) );
     connect( ui->lineEdit, SIGNAL(textEdited(QString)),
              this, SLOT(textEdited(QString)) );
+    connect( m_model, SIGNAL(rowsInserted(QModelIndex,int,int)),
+             this, SLOT(firstRowInserted()),
+             Qt::DirectConnection);
 
     /* hide label by default */
     setLabel("");
@@ -124,6 +127,16 @@ void Dialog::setFilter(const QString &currentText)
     }
 }
 
+void Dialog::firstRowInserted()
+{
+    if ( m_original_text.isEmpty() ) {
+        ui->lineEdit->setText( m_model->data(m_model->index(0)).toString() );
+        ui->lineEdit->selectAll();
+    }
+    disconnect( m_model, SIGNAL(rowsInserted(QModelIndex,int,int)),
+                this, SLOT(firstRowInserted()) );
+}
+
 void Dialog::updateFilter(int interval)
 {
     if ( m_hide_list )
@@ -131,7 +144,12 @@ void Dialog::updateFilter(int interval)
 
     static QTimer *update_t = NULL;
     if (interval <= 0) {
-        setFilter( ui->lineEdit->text() );
+        QLineEdit *edit = ui->lineEdit;
+        int i = edit->selectionStart();
+        if (i<0)
+            i = qMax( 0, edit->cursorPosition() );
+        QString filter = edit->text().left(i);
+        setFilter(filter);
         return;
     }
 
@@ -268,11 +286,19 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
                 if ( edit->selectionStart() >= 0 ) {
                     edit->completer()->setCompletionPrefix( edit->text() );
                     edit->setCursorPosition( edit->text().length() );
-                    return true;
                 } else if (m_hide_list) {
                     popList();
-                    return true;
+                } else {
+                    view->setFocus();
+                    if ( !view->selectionModel()->hasSelection() ) {
+                        view->selectionModel()->setCurrentIndex(
+                                view->currentIndex(),
+                                QItemSelectionModel::Select);
+                    } else {
+                        itemSelected(QItemSelection(), QItemSelection());
+                    }
                 }
+                return true;
             }
             break;
         case Qt::Key_Up:
@@ -282,6 +308,7 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
                 edit->setFocus();
                 return true;
             }
+            break;
         case Qt::Key_Down:
         case Qt::Key_PageDown:
             if (m_hide_list && obj == edit) {

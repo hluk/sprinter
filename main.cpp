@@ -189,7 +189,7 @@ void parseArguments(const QStringList &arguments,
             arg = takeArgument(args, ok);
             if (!ok) help(1);
             dialog.setWindowTitle(arg);
-        } else if (arg.startsWith("-x") || arg == "--wrap") {
+        } else if (arg.startsWith("-w") || arg == "--wrap") {
             dialog.setWrapping(true);
         } else if (arg.startsWith("-z") || arg == "--size") {
             arg = takeArgument(args, ok);
