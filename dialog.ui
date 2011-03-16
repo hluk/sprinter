@@ -68,6 +68,12 @@
        <property name="selectionMode">
         <enum>QAbstractItemView::ExtendedSelection</enum>
        </property>
+       <property name="iconSize">
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
        <property name="textElideMode">
         <enum>Qt::ElideMiddle</enum>
        </property>
@@ -76,6 +82,9 @@
        </property>
        <property name="horizontalScrollMode">
         <enum>QAbstractItemView::ScrollPerPixel</enum>
+       </property>
+       <property name="resizeMode">
+        <enum>QListView::Adjust</enum>
        </property>
        <property name="uniformItemSizes">
         <bool>true</bool>

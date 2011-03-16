@@ -44,6 +44,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent *);
+    void keyPressEvent(QKeyEvent *event);
 
 public slots:
     void setFilter(const QString &currentText);

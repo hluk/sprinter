@@ -1,4 +1,6 @@
+/* http://doc.qt.nokia.com/latest/stylesheet-reference.html */
 /* http://doc.qt.nokia.com/stylesheet-examples.html */
+
 QLineEdit, QListView, QDialog {
     font-family: Envy Code R, Consolas, Bitstream Vera Sans Mono, monospace;
     border: 1px solid transparent;

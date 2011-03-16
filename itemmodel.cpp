@@ -3,6 +3,8 @@
 #include <QTimer>
 #include <QApplication>
 #include <QPalette>
+#include <QFont>
+#include <QFileIconProvider>
 #include <QDebug>
 #include <cstdio>
 
@@ -47,18 +49,17 @@ int ItemModel::rowCount(const QModelIndex &) const
 
 QVariant ItemModel::data(const QModelIndex &index, int role) const
 {
+    static QFileIconProvider icon_provider;
     int row = index.row();
 
-    if (role == Qt::DisplayRole || role == Qt::EditRole)
+    if (role == Qt::DisplayRole || role == Qt::EditRole) {
         return m_items->at(row);
-    else if (role == Qt::BackgroundRole) {
-        return qApp->palette().base();
-        /*
-        if (row % 2 == 0)
-            return qApp->palette().base();
-        else
-            return qApp->palette().alternateBase();
-        */
+    } else if (role == Qt::DecorationRole) {
+        QFileInfo info( m_items->at(row) );
+        if ( info.exists() ) {
+            QIcon icon = icon_provider.icon(info);
+            return icon;
+        }
     } else if (role == Qt::SizeHintRole && m_item_size){
         return *m_item_size;
     }
