@@ -36,10 +36,10 @@ private:
 signals:
 
 public slots:
+    void updateItems();
 
 private slots:
     void readStdin();
-    void updateItems();
 
 };
 

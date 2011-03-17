@@ -8,6 +8,9 @@
 #include <QDebug>
 #include <cstdio>
 
+static struct timeval stdin_tv;
+static fd_set stdin_fds;
+
 ItemModel::ItemModel(QObject *parent) :
     QAbstractListModel(parent),
     m_count(0),
@@ -15,7 +18,14 @@ ItemModel::ItemModel(QObject *parent) :
 {
     m_items = new QStringList();
 
-    /* fetch lines from stdin */
+    /* set stdin */
+    stdin_tv.tv_sec = 0;
+    stdin_tv.tv_usec = 0;
+    FD_ZERO(&stdin_fds);
+    FD_SET(STDIN_FILENO, &stdin_fds);
+    setbuf(stdin, NULL);
+
+    /* fetch lines from stdin - doesn't block application */
     m_fetch_t = new QTimer(this);
     m_fetch_t->setSingleShot(true);
     m_fetch_t->setInterval(0);
@@ -76,8 +86,7 @@ void ItemModel::setItemSize(QSize &size)
 
 bool ItemModel::canFetchMore(const QModelIndex &) const
 {
-    return ( m_count != m_items->size() ) ||
-           ( !ferror(stdin) && !feof(stdin) );
+    return ( m_count != m_items->size() );
 }
 
 void ItemModel::fetchMore(const QModelIndex &)
@@ -87,6 +96,7 @@ void ItemModel::fetchMore(const QModelIndex &)
 
     beginInsertRows(QModelIndex(), m_count, rows-1);
     m_count = rows;
+    qDebug()<<rows;
     endInsertRows();
 }
 
@@ -100,40 +110,18 @@ Qt::ItemFlags ItemModel::flags(const QModelIndex &index) const
 
 void ItemModel::readStdin()
 {
-    static char buffer[256];
-    static QByteArray lines;
-
-    struct timeval tv;
-    fd_set fds;
+    static char buffer[BUFSIZ];
+    static QByteArray line;
 
     if ( !ferror(stdin) && !feof(stdin) )
     {
-        FD_ZERO(&fds);
-        FD_SET(STDIN_FILENO, &fds);
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        if ( (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv)) <= 0 ) {
-            m_fetch_t->start();
-            return;
-        }
-
-        if ( fgets(buffer, 256, stdin) ) {
-            lines.append(buffer);
-
-            int i;
-            while ( (i = lines.indexOf('\n')) >= 0 ) {
-                QByteArray *line = new QByteArray( lines.left(i) );
-                lines.remove(0, i+1);
-
-                if (i==0) continue;
-
-                // TODO: remove \r if newline is \r\n
-                /*
-                if (line->at(i-1) == '\r')
-                    line->remove(i-1, 1);
-                */
-
-                m_items->append( QString::fromLocal8Bit(line->constData()) );
+        if ( select(STDIN_FILENO+1, &stdin_fds, NULL, NULL, &stdin_tv) > 0 &&
+             fgets(buffer, BUFSIZ, stdin) ) {
+            line.append(buffer);
+            if ( line.endsWith('\n') ) {
+                line.resize( line.size()-1 );
+                m_items->append( QString::fromLocal8Bit(line.constData()) );
+                line.clear();
             }
         }
 
@@ -143,8 +131,8 @@ void ItemModel::readStdin()
 
 void ItemModel::updateItems()
 {
-    if ( canFetchMore() ) {
+    if ( canFetchMore() )
         fetchMore();
+    if ( !ferror(stdin) && !feof(stdin) )
         m_update_t->start();
-    }
 }
