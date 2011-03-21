@@ -22,7 +22,7 @@ void help(int exit_code) {
             "  -t, --title       title\n"
             "  -w, --wrap        wrap items\n"
             "  -z, --size        item size (width,height)\n"
-            "  --opacity     window opacity (value from 0.0 to 1.0)\n"
+            "  --opacity         window opacity (value from 0.0 to 1.0)\n"
             );
     exit(exit_code);
 }
