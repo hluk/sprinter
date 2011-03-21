@@ -55,6 +55,8 @@ private slots:
     void textEdited(const QString &text);
     void updateFilter(int interval = 0);
     void firstRowInserted();
+    void submit();
+    void submitCurrentItem(const QModelIndex &index);
 };
 
 #endif // DIALOG_H

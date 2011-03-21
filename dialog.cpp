@@ -12,9 +12,9 @@
 
 Dialog::Dialog(QWidget *parent) :
         QDialog(parent,
-                Qt::WindowStaysOnTopHint |
+                Qt::WindowStaysOnTopHint
                 /*Qt::X11BypassWindowManagerHint |*/
-                Qt::FramelessWindowHint),
+                /*Qt::FramelessWindowHint*/),
     ui(new Ui::Dialog),
     m_exit_code(1),
     m_strict(false),
@@ -42,6 +42,8 @@ Dialog::Dialog(QWidget *parent) :
     view->setModel(m_proxy);
 
     /* signals & slots */
+    connect( view, SIGNAL(activated(QModelIndex)),
+             this, SLOT(submitCurrentItem(QModelIndex)) );
     connect( view->selectionModel(),
              SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
              this, SLOT(itemSelected(QItemSelection,QItemSelection)) );
@@ -138,7 +140,7 @@ void Dialog::firstRowInserted()
         QModelIndex index = m_proxy->index(0,0);
         if ( index.isValid() ) {
             ui->listView->setCurrentIndex(index);
-            ui->lineEdit->setText( m_proxy->data(index).toString() );
+            ui->lineEdit->setText( index.data().toString() );
             ui->lineEdit->selectAll();
         }
     }
@@ -213,13 +215,13 @@ void Dialog::popList()
                 view->currentIndex() : m_proxy->index(0,0);
     if ( index.isValid() ) {
         view->setCurrentIndex(index);
-        QString text = m_proxy->data(index).toString();
+        QString text = index.data().toString();
 
         if ( text == edit->text() ) {
             index = m_proxy->index( index.row()+1, 0 );
             if ( index.isValid() ) {
                 view->setCurrentIndex(index);
-                text = m_proxy->data(index).toString();
+                text = index.data().toString();
             }
         }
 
@@ -241,7 +243,7 @@ void Dialog::itemSelected(const QItemSelection &,
 
     QStringList captions;
     foreach (QModelIndex index, indexes) {
-        QVariant data = m_proxy->data(index);
+        QVariant data = index.data();
         if ( data.isValid() )
             captions.append( data.toString() );
     }
@@ -253,6 +255,37 @@ void Dialog::itemSelected(const QItemSelection &,
     edit->setText(text2);
     if ( text2.startsWith(m_original_text, Qt::CaseInsensitive) )
         edit->setSelection( m_original_text.length(), text2.length() );
+}
+
+void Dialog::submit()
+{
+    QLineEdit *const edit = ui->lineEdit;
+    QString text;
+
+    if ( edit->selectionStart() >= 0 )
+        text = edit->completer()->currentCompletion();
+
+    if ( text.isEmpty() || text.compare(edit->text(), Qt::CaseInsensitive) )
+        text = edit->text();
+
+    if (m_strict && m_model->items()->indexOf(text) == -1 )
+        return;
+
+    /* print to stdout */
+    if ( !m_output ) {
+        printf( text.toLocal8Bit().constData() );
+    }
+
+    m_exit_code = 0;
+    close();
+}
+
+void Dialog::submitCurrentItem(const QModelIndex &index)
+{
+    if ( index.isValid() ) {
+        ui->lineEdit->setText( index.data().toString() );
+        submit();
+    }
 }
 
 bool Dialog::eventFilter(QObject *obj, QEvent *event)
@@ -292,21 +325,7 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
             return true;
         case Qt::Key_Enter:
         case Qt::Key_Return:
-            /* submit text */
-            if ( edit->selectionStart() >= 0 )
-                text = edit->completer()->currentCompletion();
-            if ( text.isEmpty() ||
-                    text.compare(edit->text(), Qt::CaseInsensitive) )
-                text = edit->text();
-            if (m_strict && m_model->items()->indexOf(text) == -1 ) {
-                return true;
-            }
-            if ( !m_output ) {
-                /* print to stdout */
-                printf( text.toLocal8Bit().constData() );
-            }
-            m_exit_code = 0;
-            close();
+            submit();
             return true;
         case Qt::Key_Tab:
             if (obj == edit) {
@@ -319,7 +338,6 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
                 }
                 return true;
             }
-            break;
         case Qt::Key_Down:
         case Qt::Key_PageDown:
             if (obj == edit) {

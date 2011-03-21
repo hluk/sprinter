@@ -5,7 +5,6 @@
 #include <QPalette>
 #include <QFont>
 #include <QFileIconProvider>
-#include <QDebug>
 #include <cstdio>
 
 static struct timeval stdin_tv;
@@ -96,7 +95,6 @@ void ItemModel::fetchMore(const QModelIndex &)
 
     beginInsertRows(QModelIndex(), m_count, rows-1);
     m_count = rows;
-    qDebug()<<rows;
     endInsertRows();
 }
 

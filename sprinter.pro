@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui concurent
+QT       += core gui
 
 TARGET = sprinter
 TEMPLATE = app
@@ -18,3 +18,6 @@ HEADERS  += dialog.h \
     itemmodel.h
 
 FORMS    += dialog.ui
+
+RESOURCES += \
+    resources.qrc

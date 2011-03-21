@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="icon">icon/sprinter2.svg</file>
+    </qresource>
+</RCC>
