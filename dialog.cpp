@@ -148,18 +148,23 @@ void Dialog::firstRowInserted()
                 this, SLOT(firstRowInserted()) );
 }
 
+QString Dialog::unselectedText() const
+{
+    QLineEdit *const edit = ui->lineEdit;
+    int i = edit->selectionStart();
+    if (i<0)
+        i = qMax( 0, edit->cursorPosition() );
+    return edit->text().left(i);
+}
+
 void Dialog::updateFilter(int interval)
 {
     static QTimer *update_t = NULL;
 
     if (interval <= 0) {
-        QLineEdit *const edit = ui->lineEdit;
-        if ( !edit->hasFocus() )
+        if ( !ui->lineEdit->hasFocus() )
             return;
-        int i = edit->selectionStart();
-        if (i<0)
-            i = qMax( 0, edit->cursorPosition() );
-        QString filter = edit->text().left(i);
+        QString filter = unselectedText();
         setFilter(filter);
         return;
     }
@@ -248,9 +253,6 @@ void Dialog::itemSelected(const QItemSelection &,
             captions.append( data.toString() );
     }
 
-    int i = edit->selectionStart();
-    if (i<0)
-        i = qMax( 0, edit->cursorPosition() );
     QString text2 = captions.join("\n");
     edit->setText(text2);
     if ( text2.startsWith(m_original_text, Qt::CaseInsensitive) )
@@ -290,11 +292,8 @@ void Dialog::submitCurrentItem(const QModelIndex &index)
 
 bool Dialog::eventFilter(QObject *obj, QEvent *event)
 {
-    QLineEdit *const edit = ui->lineEdit;
-    QListView *const view = ui->listView;
-
     if ( event->type() == QEvent::FocusIn ) {
-        if (obj == edit && m_hide_list && view->isVisible() ) {
+        if (obj == ui->lineEdit && m_hide_list && ui->listView->isVisible() ) {
             hideList(true);
         }
         return false;
@@ -302,9 +301,10 @@ bool Dialog::eventFilter(QObject *obj, QEvent *event)
         return false;
     }
 
+    QLineEdit *const edit = ui->lineEdit;
+    QListView *const view = ui->listView;
     QKeyEvent *e = (QKeyEvent *)event;
     QString text;
-    QModelIndex index;
 
     int key = e->key();
 
@@ -387,7 +387,8 @@ void Dialog::keyPressEvent(QKeyEvent *event)
             /* if selection is at top of list (or wrapped column in list)
              * and user wants to move up then select lineedit
              */
-            edit->setText(m_original_text);
+            if ( m_original_text != unselectedText() )
+                edit->setText(m_original_text);
             edit->setFocus();
             event->accept();
         } else if (key == Qt::Key_Down || key == Qt::Key_PageDown) {
@@ -398,6 +399,7 @@ void Dialog::keyPressEvent(QKeyEvent *event)
                 if ( index.isValid() )
                     view->setCurrentIndex(index);
             }
+            event->accept();
         }
     }
 }

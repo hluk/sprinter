@@ -111,20 +111,26 @@ void ItemModel::readStdin()
     static char buffer[BUFSIZ];
     static QByteArray line;
 
-    if ( !ferror(stdin) && !feof(stdin) )
-    {
-        if ( select(STDIN_FILENO+1, &stdin_fds, NULL, NULL, &stdin_tv) > 0 &&
-             fgets(buffer, BUFSIZ, stdin) ) {
+    /*
+     * interrupt after reading at most N lines and
+     * resume after processing pending events in event loop
+     */
+    for( int i = 0; i < 20; ++i ) {
+        if ( select(STDIN_FILENO+1, &stdin_fds, NULL, NULL, &stdin_tv) <= 0 )
+            break;
+        if ( fgets(buffer, BUFSIZ, stdin) ) {
             line.append(buffer);
             if ( line.endsWith('\n') ) {
                 line.resize( line.size()-1 );
                 m_items->append( QString::fromLocal8Bit(line.constData()) );
                 line.clear();
             }
+        } else {
+            break;
         }
-
-        m_fetch_t->start();
     }
+    if ( !ferror(stdin) && !feof(stdin) )
+        m_fetch_t->start();
 }
 
 void ItemModel::updateItems()

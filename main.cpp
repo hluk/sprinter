@@ -2,42 +2,58 @@
 #include <QDesktopWidget>
 #include <QFile>
 #include <cstdio>
-#include <QDebug>
 #include <cerrno>
 #include "dialog.h"
 
+#define TR(x) (QObject::tr(x).toLocal8Bit().constData())
+
+struct Argument {
+    const char shopt;
+    const char *opt;
+    const char *help;
+};
+
+const Argument arguments[] = {
+    {'c', "command",  "exec command on items"},
+    {'g', "geometry", "window size and position (format: width,height,x,y)"},
+    {'h', "help",     "show this help"},
+    {'l', "label",    "text input label"},
+    {'m', "minimal",  "show popup menu instead of list"},
+    {'o', "sort",     "sort items alphabetically"},
+    {'p', "opacity",  "window opacity (value from 0.0 to 1.0)"},
+    {'s', "style",    "stylesheet"},
+    {'S', "strict",   "choose only items from stdin"},
+    {'t', "title",    "title"},
+    {'w', "wrap",     "wrap items"},
+    {'z', "size",     "item size (format: width,height)"}
+};
+
 /* print help and exit */
 void help(int exit_code) {
-    printf(
-            "usage: sprinter [options]\n"
-            "options:\n"
-            "  -c, --command     exec command on items\n"
-            "  -g, --geometry    window size and position (width,height,x,y)\n"
-            "  -h, --help        show this help\n"
-            "  -l, --label       text input label\n"
-            "  -m, --minimal     show popup menu instead of list\n"
-            "  -o, --sort        sort items alphabetically\n"
-            "  -s, --style       stylesheet\n"
-            "  -S, --strict      choose only items from stdin\n"
-            "  -t, --title       title\n"
-            "  -w, --wrap        wrap items\n"
-            "  -z, --size        item size (width,height)\n"
-            "  --opacity         window opacity (value from 0.0 to 1.0)\n"
-            );
+    int len = sizeof(arguments)/sizeof(Argument);
+
+    printf( TR("usage: sprinter [options]\n") );
+    printf( TR("options:\n") );
+    for ( int i = 0; i<len; ++i ) {
+        const Argument &arg = arguments[i];
+        printf( "  -%c, --%-12s %s\n", arg.shopt, arg.opt, TR(arg.help) );
+    }
     exit(exit_code);
 }
 
 // TODO: parse %s in command string
-void parseCommand(const QString &cmd, QStringList &args)
+void parseCommand(const char *cmd, QStringList &args)
 {
     QString arg;
     bool quotes = false;
     bool dquotes = false;
     bool escape = false;
     bool outside = true;
-    foreach(QChar c, cmd) {
+    int len = sizeof(cmd);
+    for(int i = 0; i<len; ++i) {
+        const char c = cmd[i];
         if ( outside ) {
-            if ( c.isSpace() )
+            if ( isspace(c) )
                 continue;
             else
                 outside = false;
@@ -66,7 +82,7 @@ void parseCommand(const QString &cmd, QStringList &args)
             dquotes = !dquotes;
         } else if (quotes) {
             arg.append(c);
-        } else if ( c.isSpace() ) {
+        } else if ( isspace(c) ) {
             outside = true;
             args.append(arg);
             arg.clear();
@@ -80,139 +96,170 @@ void parseCommand(const QString &cmd, QStringList &args)
     }
 }
 
-QString takeArgument(QStringList &args, bool &ok) {
-    QString arg;
-
-    if ( args.isEmpty() ) {
-        ok = false;
-        return arg;
-    }
-
-    arg = args.takeFirst();
-
-    if ( arg.size() > 2 && arg.at(0) == '-' && arg.at(1) != '-' ) {
-        args.push_front( arg.mid(2) );
-        arg = arg.left(2);
-    }
-
-    ok = true;
-    return arg;
-}
-
-void parseArguments(const QStringList &arguments,
-                    Dialog &dialog,
+void parseArguments(int argc, char *argv[], Dialog &dialog,
                     QStringList &command_args)
 {
-    // copy arguments
-    QStringList args(arguments);
+    int num, num2;
+    float fnum;
+    bool ok;
+    char c;
+    bool force_arg;
+    int len = sizeof(arguments)/sizeof(Argument);
 
-    args.takeFirst(); // program file path
+    int i = 1;
+    while(i<argc) {
+        const char *argp = argv[i];
+        ++i;
 
-    while ( !args.isEmpty() ) {
-        bool ok;
-        int num, num2;
-        float fnum;
-        QStringList args2;
-        QString arg = takeArgument(args, ok);
-        if (!ok) help(1);
+        if (argp[0] != '-' || argp[1] == '\0')
+            return help(1);
 
-        if (arg.startsWith("-c") || arg == "--command") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            parseCommand(arg, command_args);
+        int j = 0;
+        force_arg = false;
+
+        // long option
+        if (argp[1] == '-') {
+            argp += 2;
+            for ( ; j<len; ++j) {
+                if ( strcmp(argp, arguments[j].opt) == 0 )
+                    break;
+            }
+            argp = i<argc ? argv[i] : NULL;
+        }
+        // short option
+        else {
+            argp += 1;
+            for ( ; j<len; ++j) {
+                if ( *argp == arguments[j].shopt )
+                    break;
+            }
+            argp += 1;
+            if (*argp == '\0') {
+                argp = i<argc ? argv[i] : NULL;
+            } else {
+                force_arg = true;
+                --i;
+            }
+        }
+
+        if ( j == len )
+            return help(1);
+
+        /* do action */
+        const char arg = arguments[j].shopt;
+        if (arg == 'c') {
+            if (!argp) help(1);
+            ++i;
+            parseCommand(argp, command_args);
             dialog.saveOutput(&command_args);
-        } else if (arg.startsWith("-g") || arg == "--geometry") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
+        } else if (arg == 'g') {
+            if (!argp) help(1);
+            ++i;
 
             /* desktop size */
             QDesktopWidget *desk = QApplication::desktop();
+            QPoint pos = dialog.pos();
 
             /* width,height,x,y - all optional */
-            args2 = arg.split(',');
-            if (args2.size() > 4 || args2.isEmpty()) help(1);
             // width
-            num = args2.takeFirst().toInt(&ok);
-            if (ok && num > 0)
+            num2 = sscanf(argp, "%d%c", &num, &c);
+            if (num2 > 0 && num > 0)
                 dialog.resize( qMin(desk->width(), num), dialog.height() );
 
-            if ( !args2.isEmpty() ) {
-                // height
-                num = args2.takeFirst().toInt(&ok);
-                if (ok && num > 0)
-                    dialog.resize( dialog.width(), qMin(desk->height(), num) );
+            while( isdigit(*argp) || *argp=='+' ) ++argp;
+            if (*argp == ',')
+                ++argp;
+            else if (*argp != '\0')
+                help(1);
 
-                if ( !args2.isEmpty() ) {
-                    QPoint pos = dialog.pos();
-                    // x
-                    num = args2.takeFirst().toInt(&ok);
-                    if (ok) {
-                        if (num <= 0)
-                            num = desk->width() + num;
-                        pos.setX(num);
-                    }
+            // height
+            num2 = sscanf(argp, "%d", &num);
+            if (num2 > 0 && num > 0)
+                dialog.resize( dialog.width(), qMin(desk->height(), num) );
 
-                    if ( !args2.isEmpty() ) {
-                        // y
-                        num = args2.takeFirst().toInt(&ok);
-                        if (ok) {
-                            if (num <= 0)
-                                num = desk->height() + num;
-                            pos.setY(num);
-                        }
-                    }
+            while( isdigit(*argp) || *argp=='+' ) ++argp;
+            if (*argp == ',')
+                ++argp;
+            else if (*argp != '\0')
+                help(1);
 
-                    dialog.move(pos);
-                }
+            // x
+            num2 = sscanf(argp, "%d", &num);
+            if (num2 > 0) {
+                if (num < 0)
+                    num = desk->width() + num - dialog.width();
+                pos.setX(num);
+                dialog.move(pos);
             }
-        } else if (arg.startsWith("-h") || arg == "--help") {
-            help(0);
-        } else if (arg.startsWith("-l") || arg == "--label") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            dialog.setLabel(arg);
-        } else if (arg.startsWith("-o") || arg == "--sort") {
-            dialog.sortList();
-        } else if (arg.startsWith("-s") || arg == "--style") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
 
-            QFile file(arg);
+            while( isdigit(*argp) || *argp=='+' || *argp=='-' ) ++argp;
+            if (*argp == ',')
+                ++argp;
+            else if (*argp != '\0')
+                help(1);
+
+            // y
+            num2 = sscanf(argp, "%d", &num);
+            if (num2 > 0) {
+                if (num < 0)
+                    num = desk->height() + num - dialog.height();
+                pos.setY(num);
+                dialog.move(pos);
+            }
+
+            while( isdigit(*argp) || *argp=='+' || *argp=='-' ) ++argp;
+            if (*argp != '\0')
+                help(1);
+        } else if (arg == 'h') {
+            if (force_arg) help(1);
+            help(0);
+        } else if (arg == 'l') {
+            if (!argp) help(1);
+            ++i;
+            dialog.setLabel(argp);
+        } else if (arg == 'm') {
+            if (force_arg) help(1);
+            dialog.hideList(true);
+        } else if (arg == 'o') {
+            if (force_arg) help(1);
+            dialog.sortList();
+        } else if (arg == 'p') {
+            if (!argp) help(1);
+            ++i;
+            num = sscanf(argp, "%f%c", &fnum, &c);
+            if (num != 1 || fnum < 0.0f || fnum > 1.0f)
+                help(1);
+            dialog.setWindowOpacity(fnum);
+        } else if (arg == 's') {
+            if (!argp) help(1);
+            ++i;
+
+            QFile file(argp);
             ok = file.open(QIODevice::ReadOnly);
             if (!ok) help(1);
 
             qApp->setStyleSheet( file.readAll() );
             file.close();
-        } else if (arg.startsWith("-S") || arg == "--strict") {
+        } else if (arg == 'S') {
+            if (force_arg) help(1);
             dialog.setStrict(true);
-        } else if (arg.startsWith("-t") || arg == "--title") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            dialog.setWindowTitle(arg);
-        } else if (arg.startsWith("-w") || arg == "--wrap") {
+        } else if (arg == 't') {
+            if (!argp) help(1);
+            ++i;
+            dialog.setWindowTitle(argp);
+        } else if (arg == 'w') {
+            if (force_arg) help(1);
             dialog.setWrapping(true);
-        } else if (arg.startsWith("-z") || arg == "--size") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
+        } else if (arg == 'z') {
+            if (!argp) help(1);
+            ++i;
 
-            args2 = arg.split(',');
-            if (args2.size() != 2) help(1);
-
-            num = args2.at(0).toInt(&ok);
-            if (!ok) help(1);
-
-            num2 = args2.at(1).toInt(&ok);
-            if (!ok) help(1);
+            if ( sscanf(argp, "%d,%d%c", &num, &num2, &c) != 2 )
+                help(1);
+            if ( num <= 0 || num2 <= 0 )
+                help(1);
 
             dialog.setGridSize(num, num2);
-        } else if (arg.startsWith("-m") || arg == "--minimal") {
-            dialog.hideList(true);
-        } else if (arg == "--opacity") {
-            arg = takeArgument(args, ok);
-            if (!ok) help(1);
-            fnum = arg.toFloat(&ok);
-            if (!ok && fnum > 0.0f && fnum < 1.0f) help(1);
-            dialog.setWindowOpacity(fnum);
         } else {
             help(1);
         }
@@ -229,7 +276,7 @@ int main(int argc, char *argv[])
 
     Dialog dialog;
 
-    parseArguments( a.arguments(), dialog, command_args );
+    parseArguments(argc, argv, dialog, command_args);
 
     dialog.show();
 

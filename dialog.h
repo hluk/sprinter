@@ -42,6 +42,8 @@ private:
     bool m_hide_list;
     int m_height;
 
+    QString unselectedText() const;
+
 protected:
     void closeEvent(QCloseEvent *);
     void keyPressEvent(QKeyEvent *event);
