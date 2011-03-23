@@ -7,9 +7,6 @@
 #include <QFileIconProvider>
 #include <cstdio>
 
-static struct timeval stdin_tv;
-static fd_set stdin_fds;
-
 ItemModel::ItemModel(QObject *parent) :
     QAbstractListModel(parent),
     m_count(0),
@@ -17,11 +14,7 @@ ItemModel::ItemModel(QObject *parent) :
 {
     m_items = new QStringList();
 
-    /* set stdin */
-    stdin_tv.tv_sec = 0;
-    stdin_tv.tv_usec = 0;
-    FD_ZERO(&stdin_fds);
-    FD_SET(STDIN_FILENO, &stdin_fds);
+    /* no buffer for stdin */
     setbuf(stdin, NULL);
 
     /* fetch lines from stdin - doesn't block application */
@@ -110,16 +103,26 @@ void ItemModel::readStdin()
 {
     static char buffer[BUFSIZ];
     static QByteArray line;
+    static struct timeval stdin_tv = {0,0};
+    fd_set stdin_fds;
 
     /*
      * interrupt after reading at most N lines and
      * resume after processing pending events in event loop
      */
     for( int i = 0; i < 20; ++i ) {
+        /* set stdin */
+        FD_ZERO(&stdin_fds);
+        FD_SET(STDIN_FILENO, &stdin_fds);
+
+        /* check if data available */
         if ( select(STDIN_FILENO+1, &stdin_fds, NULL, NULL, &stdin_tv) <= 0 )
             break;
+
+        /* read data */
         if ( fgets(buffer, BUFSIZ, stdin) ) {
             line.append(buffer);
+            /* each line is one item */
             if ( line.endsWith('\n') ) {
                 line.resize( line.size()-1 );
                 m_items->append( QString::fromLocal8Bit(line.constData()) );
@@ -129,7 +132,10 @@ void ItemModel::readStdin()
             break;
         }
     }
-    if ( !ferror(stdin) && !feof(stdin) )
+
+    if ( ferror(stdin) )
+        perror( tr("Error reading stdin!").toLocal8Bit().constData() );
+    else if ( !feof(stdin) )
         m_fetch_t->start();
 }
 

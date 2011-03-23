@@ -42,9 +42,9 @@ void help(int exit_code) {
 }
 
 // TODO: parse %s in command string
-void parseCommand(const char *cmd, QStringList &args)
+void parseCommand(const char *cmd, QList<QByteArray> &args)
 {
-    QString arg;
+    QByteArray arg;
     bool quotes = false;
     bool dquotes = false;
     bool escape = false;
@@ -97,7 +97,7 @@ void parseCommand(const char *cmd, QStringList &args)
 }
 
 void parseArguments(int argc, char *argv[], Dialog &dialog,
-                    QStringList &command_args)
+                    QList<QByteArray> &command_args)
 {
     int num, num2;
     float fnum;
@@ -269,7 +269,11 @@ void parseArguments(int argc, char *argv[], Dialog &dialog,
 int main(int argc, char *argv[])
 {
     int exit_code;
-    QStringList command_args;
+    QList<QByteArray> command_args;
+
+#ifdef QT_DEBUG
+    qDebug("NOTE: Starting debug version.");
+#endif
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
@@ -282,16 +286,16 @@ int main(int argc, char *argv[])
 
     exit_code = a.exec();
 
+    /* exec command */
     if ( !exit_code && !command_args.isEmpty() ) {
-        /* exec command */
-        QVector<char *> *qargv = new QVector<char *>;
-        foreach(QString arg, command_args) {
-            QByteArray *b = new QByteArray( arg.toLocal8Bit() );
-            qargv->append( b->data() );
-        }
-        qargv->push_back((char *)NULL);
+        int len = command_args.size();
+        char **new_argv = new char* [len+1];
 
-        char **new_argv = qargv->data();
+        for( int i = 0; i<len; ++i ) {
+            new_argv[i] = command_args[i].data();
+        }
+        new_argv[len] = NULL;
+
         execvp(new_argv[0], new_argv);
         perror( strerror(errno) );
         return errno;

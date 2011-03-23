@@ -73,8 +73,17 @@ Dialog::~Dialog()
 
 void Dialog::closeEvent(QCloseEvent *)
 {
-    if (!m_exit_code && m_output)
-        m_output->append( ui->lineEdit->text().split('\n') );
+    if (!m_exit_code && m_output) {
+        int a = 0, b = 0;
+        QString text = ui->lineEdit->text();
+
+        while ( (b = text.indexOf('\n', a)) > 0 ) {
+            m_output->append( text.mid(a, b-a).toLocal8Bit() );
+            a = b+1;
+        }
+        if ( a != text.size() )
+            m_output->append( text.mid(a).toLocal8Bit() );
+    }
     qApp->exit(m_exit_code);
 }
 

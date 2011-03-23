@@ -45,14 +45,13 @@
          id="stop3817" />
     </linearGradient>
     <linearGradient
-       inkscape:collect="always"
        id="linearGradient3796">
       <stop
-         style="stop-color:#e3dbdb;stop-opacity:1;"
+         style="stop-color:#93c6ff;stop-opacity:1;"
          offset="0"
          id="stop3798" />
       <stop
-         style="stop-color:#000000;stop-opacity:1"
+         style="stop-color:#0079c8;stop-opacity:1;"
          offset="1"
          id="stop3800" />
     </linearGradient>
@@ -60,9 +59,9 @@
        inkscape:collect="always"
        xlink:href="#linearGradient3796"
        id="linearGradient3802"
-       x1="138.0472"
+       x1="107.66418"
        y1="188.87811"
-       x2="437.74283"
+       x2="287.05325"
        y2="188.87811"
        gradientUnits="userSpaceOnUse"
        gradientTransform="matrix(-1,0,0,1,399.46458,652.36218)" />
@@ -96,7 +95,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.98994949"
-     inkscape:cx="207.18832"
+     inkscape:cx="386.49039"
      inkscape:cy="210.20412"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -163,8 +162,8 @@
     <rect
        style="fill:#ffccaa;fill-opacity:1;fill-rule:nonzero;stroke:none"
        id="rect4423"
-       width="172.73608"
-       height="105.05587"
+       width="199.00005"
+       height="118.18783"
        x="-349.9671"
        y="695.77832"
        transform="scale(-1,1)" />
@@ -188,13 +187,13 @@
        sodipodi:nodetypes="ccccc" />
     <path
        transform="scale(-1,1)"
-       style="fill:#aa0000;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       style="fill:#d40000;fill-opacity:1;fill-rule:nonzero;stroke:none"
        d="m -151.97725,946.47888 36.36548,0 19.192901,33.33507 -34.345181,0 z"
        id="rect4417"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="ccccc" />
     <path
-       style="fill:url(#radialGradient3837);fill-opacity:1;stroke:#000000;stroke-width:20;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       style="fill:url(#radialGradient3837);fill-opacity:1;stroke:#000000;stroke-width:14;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="m 212.58636,824.29106 0,21.2132 46.32488,0 -5.05076,58.58885 c 0,0 -76.15574,17.64631 -105.92388,-6.06092 -29.76814,-23.70723 -20.20306,-82.97464 -20.20306,-82.97464"
        id="path4419"
        inkscape:connector-curvature="0"
@@ -241,8 +240,8 @@
            y="177.76643"
            style="-inkscape-font-specification:Bitstream Vera Sans Mono Bold;font-family:Bitstream Vera Sans Mono;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:50px" /></flowRegion><flowPara
          id="flowPara3780" /></flowRoot>    <path
-       style="fill:none;stroke:#000000;stroke-width:26;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
-       d="m 323.70314,1036.3013 -174.75639,0"
+       style="fill:none;stroke:#000000;stroke-width:30;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:0.70588237;stroke-dasharray:none"
+       d="m 325.70314,1032.3013 -174.75639,0"
        id="path3804"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
