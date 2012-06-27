@@ -41,6 +41,6 @@ Usage
       -z, --size        item size (width,height)
       --opacity         window opacity (value from 0.0 to 1.0)
 
-[icon]: https://github.com/hluk/sprinter/raw/master/icon/sprinter.png "sprinter logo"
+[icon]: https://github.com/hluk/sprinter/raw/master/resources/icon/sprinter.png "sprinter logo"
 [dmenu]: http://tools.suckless.org/dmenu
 
