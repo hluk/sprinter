@@ -12,6 +12,17 @@ Behaviour is similar to [dmenu] application.
 
 - otherwise (user presses escape key or closes window without selecting any item) program exits with exit code 1.
 
+Installation
+------------
+To compile application just run command:
+
+    cmake
+    make
+
+and to install it:
+
+    make install
+
 Usage
 -----
     $ sprinter --help
