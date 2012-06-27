@@ -3,6 +3,7 @@
 #include <QFile>
 #include <cstdio>
 #include <cerrno>
+#include <unistd.h>
 #include "dialog.h"
 
 #define TR(x) (QObject::tr(x).toLocal8Bit().constData())

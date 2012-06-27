@@ -4,21 +4,22 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT += core gui
 
 TARGET = sprinter
 TEMPLATE = app
 
+SOURCES += \
+    src/main.cpp \
+    src/dialog.cpp \
+    src/itemmodel.cpp
 
-SOURCES += main.cpp\
-        dialog.cpp \
-    itemmodel.cpp
+HEADERS += \
+    src/dialog.h \
+    src/itemmodel.h
 
-HEADERS  += dialog.h \
-    itemmodel.h
-
-FORMS    += dialog.ui
+FORMS += ui/dialog.ui
 
 RESOURCES += \
-    resources.qrc
+    resources/resources.qrc
 

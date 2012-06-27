@@ -6,6 +6,9 @@
 #include <QFont>
 #include <QFileIconProvider>
 #include <cstdio>
+#include <unistd.h>
+
+static const int stdin_batch_size = 250;
 
 ItemModel::ItemModel(QObject *parent) :
     QAbstractListModel(parent),
@@ -106,17 +109,20 @@ void ItemModel::readStdin()
     static struct timeval stdin_tv = {0,0};
     fd_set stdin_fds;
 
+    /* disable stdin buffering (otherwise select waits on new line) */
+    setbuf(stdin, NULL);
+
     /*
      * interrupt after reading at most N lines and
      * resume after processing pending events in event loop
      */
-    for( int i = 0; i < 20; ++i ) {
+    for( int i = 0; i < stdin_batch_size; ++i ) {
         /* set stdin */
         FD_ZERO(&stdin_fds);
         FD_SET(STDIN_FILENO, &stdin_fds);
 
         /* check if data available */
-        if ( select(STDIN_FILENO+1, &stdin_fds, NULL, NULL, &stdin_tv) <= 0 )
+        if ( select(STDIN_FILENO + 1, &stdin_fds, NULL, NULL, &stdin_tv) <= 0 )
             break;
 
         /* read data */
