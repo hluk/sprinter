@@ -18,12 +18,14 @@
 */
 
 #include "itemmodel.h"
+
+#include <QApplication>
+#include <QFileIconProvider>
+#include <QFont>
+#include <QPalette>
 #include <QStringList>
 #include <QTimer>
-#include <QApplication>
-#include <QPalette>
-#include <QFont>
-#include <QFileIconProvider>
+
 #include <cstdio>
 #include <unistd.h>
 

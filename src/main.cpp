@@ -17,13 +17,15 @@
     along with Sprinter.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <QtGui/QApplication>
+#include "dialog.h"
+
+#include <QApplication>
 #include <QDesktopWidget>
 #include <QFile>
-#include <cstdio>
+
 #include <cerrno>
+#include <cstdio>
 #include <unistd.h>
-#include "dialog.h"
 
 #define TR(x) (QObject::tr(x).toLocal8Bit().constData())
 
@@ -295,8 +297,8 @@ int main(int argc, char *argv[])
     qDebug("NOTE: Starting debug version.");
 #endif
 
-    QApplication a(argc, argv);
-    a.setQuitOnLastWindowClosed(false);
+    QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
 
     Dialog dialog;
 
@@ -304,7 +306,7 @@ int main(int argc, char *argv[])
 
     dialog.show();
 
-    exit_code = a.exec();
+    exit_code = app.exec();
 
     /* exec command */
     if ( !exit_code && !command_args.isEmpty() ) {
