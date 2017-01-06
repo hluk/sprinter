@@ -22,9 +22,10 @@
 
 #include <QAbstractListModel>
 #include <QStringList>
-#include <QSize>
 #include <QTimer>
+#include <QVariant>
 
+class QSize;
 class QTimer;
 
 class ItemModel : public QAbstractListModel
@@ -49,7 +50,7 @@ private:
     QStringList m_items;
     QTimer m_timerFetch;
     QTimer m_timerUpdate;
-    QSize m_itemSize;
+    QVariant m_itemSize;
 
 private slots:
     void updateItems();
