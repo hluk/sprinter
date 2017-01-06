@@ -303,7 +303,7 @@ void Dialog::submit()
 
     /* print to stdout */
     if ( !m_output ) {
-        printf( text.toLocal8Bit().constData() );
+        printf( "%s", text.toLocal8Bit().constData() );
     }
 
     m_exit_code = 0;

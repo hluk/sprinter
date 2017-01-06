@@ -67,7 +67,7 @@ static QString helpString(const char shopt)
 
 static void printLine(const QString &msg)
 {
-    printf( (msg + "\n").toLocal8Bit().constData() );
+    printf( "%s", (msg + "\n").toLocal8Bit().constData() );
 }
 
 /* print help and exit */
