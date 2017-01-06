@@ -21,19 +21,18 @@
 #define ITEMMODEL_H
 
 #include <QAbstractListModel>
+#include <QStringList>
+#include <QSize>
+#include <QTimer>
 
-class QStringList;
 class QTimer;
-class QSize;
 
 class ItemModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
-    explicit ItemModel(QObject *parent = 0);
-    ~ItemModel();
+    explicit ItemModel(QObject *parent = NULL);
 
-    // needs to be implemented
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
 
@@ -43,23 +42,18 @@ public:
 
     void setItemSize(QSize &size);
 
-    const QStringList *items() const {return m_items;}
+    const QStringList &items() const { return m_items; }
 
 private:
     int m_count;
-    QStringList *m_items;
-    QTimer *m_fetch_t;
-    QTimer *m_update_t;
-    QSize *m_item_size;
-
-signals:
-
-public slots:
-    void updateItems();
+    QStringList m_items;
+    QTimer m_timerFetch;
+    QTimer m_timerUpdate;
+    QSize m_itemSize;
 
 private slots:
+    void updateItems();
     void readStdin();
-
 };
 
 #endif // ITEMMODEL_H

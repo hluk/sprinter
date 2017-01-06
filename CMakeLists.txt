@@ -1,37 +1,41 @@
-cmake_minimum_required(VERSION 2.8)
-PROJECT(sprinter)
-FIND_PACKAGE(Qt4 REQUIRED)
+cmake_minimum_required(VERSION 2.8.8)
+project(sprinter)
+find_package(Qt5Widgets REQUIRED)
 
-FILE(GLOB sprinter_SOURCES
+file(GLOB sprinter_SOURCES
     src/*.cpp
     )
 
 # headers that needs to be processed by moc
-FILE(GLOB sprinter_HEADERS
+file(GLOB sprinter_HEADERS
     src/*.h
     )
 
-FILE(GLOB sprinter_FORMS
+file(GLOB sprinter_FORMS
     ui/*.ui
     )
 
-SET(sprinter_RESOURCES resources/resources.qrc)
+set(sprinter_RESOURCES resources/resources.qrc)
 
-INCLUDE(${QT_USE_FILE})
-INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR} src/include)
-ADD_DEFINITIONS(${QT_DEFINITIONS})
+include_directories(${CMAKE_BINARY_DIR} src/include)
 
-QT4_WRAP_CPP(sprinter_HEADERS_MOC ${sprinter_HEADERS})
-QT4_WRAP_UI(sprinter_FORMS_HEADERS ${sprinter_FORMS})
-QT4_ADD_RESOURCES(sprinter_RESOURCES_RCC ${sprinter_RESOURCES})
+include_directories(${Qt5Widgets_INCLUDES})
+add_definitions(${Qt5Widgets_DEFINITIONS})
 
-ADD_EXECUTABLE(sprinter
+set(CMAKE_AUTOMOC ON)
+qt5_wrap_ui(sprinter_FORMS_HEADERS ${sprinter_FORMS})
+qt5_add_resources(sprinter_RESOURCES_RCC ${sprinter_RESOURCES})
+
+add_executable(sprinter
     ${sprinter_SOURCES}
     ${sprinter_HEADERS_MOC}
     ${sprinter_FORMS_HEADERS}
     ${sprinter_RESOURCES_RCC}
     )
-TARGET_LINK_LIBRARIES(sprinter
+
+qt5_use_modules(sprinter Widgets ${sprinter_Qt5_Modules})
+
+target_link_libraries(sprinter
     ${QT_LIBRARIES}
     ${sprinter_LIBRARIES}
     )

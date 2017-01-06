@@ -19,15 +19,15 @@
 
 #include "dialog.h"
 #include "ui_dialog.h"
-#include <QIODevice>
+
+#include "itemmodel.h"
+
+#include <QCompleter>
 #include <QKeyEvent>
 #include <QSortFilterProxyModel>
-#include <QCompleter>
-#include <QProcess>
 #include <QTimer>
-#include <QDebug>
+
 #include <cstdio>
-#include "itemmodel.h"
 
 Dialog::Dialog(QWidget *parent) :
         QDialog(parent,
@@ -298,7 +298,7 @@ void Dialog::submit()
     if ( text.isEmpty() || text.compare(edit->text(), Qt::CaseInsensitive) )
         text = edit->text();
 
-    if (m_strict && m_model->items()->indexOf(text) == -1 )
+    if (m_strict && m_model->items().indexOf(text) == -1 )
         return;
 
     /* print to stdout */

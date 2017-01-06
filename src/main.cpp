@@ -22,49 +22,71 @@
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QFile>
+#include <QVector>
 
 #include <cerrno>
 #include <cstdio>
 #include <unistd.h>
 
-#define TR(x) (QObject::tr(x).toLocal8Bit().constData())
-
 struct Argument {
     const char shopt;
     const char *opt;
-    const char *help;
 };
 
 const Argument arguments[] = {
-    {'c', "command",  "exec command on items"},
-    {'g', "geometry", "window size and position (format: width,height,x,y)"},
-    {'h', "help",     "show this help"},
-    {'l', "label",    "text input label"},
-    {'m', "minimal",  "show popup menu instead of list"},
-    {'o', "sort",     "sort items alphabetically"},
-    {'p', "opacity",  "window opacity (value from 0.0 to 1.0)"},
-    {'s', "style",    "stylesheet"},
-    {'S', "strict",   "choose only items from stdin"},
-    {'t', "title",    "title"},
-    {'w', "wrap",     "wrap items"},
-    {'z', "size",     "item size (format: width,height)"}
+    {'c', "command"},
+    {'g', "geometry"},
+    {'h', "help"},
+    {'l', "label"},
+    {'m', "minimal"},
+    {'o', "sort"},
+    {'p', "opacity"},
+    {'s', "style"},
+    {'S', "strict"},
+    {'t', "title"},
+    {'w', "wrap"},
+    {'z', "size"},
 };
 
+static QString helpString(const char shopt)
+{
+    if (shopt == 'c') return QObject::tr("exec command on items");
+    if (shopt == 'g') return QObject::tr("window size and position (format: width,height,x,y)");
+    if (shopt == 'h') return QObject::tr("show this help");
+    if (shopt == 'l') return QObject::tr("text input label");
+    if (shopt == 'm') return QObject::tr("show popup menu instead of list");
+    if (shopt == 'o') return QObject::tr("sort items alphabetically");
+    if (shopt == 'p') return QObject::tr("window opacity (value from 0.0 to 1.0)");
+    if (shopt == 's') return QObject::tr("stylesheet");
+    if (shopt == 'S') return QObject::tr("choose only items from stdin");
+    if (shopt == 't') return QObject::tr("title");
+    if (shopt == 'w') return QObject::tr("wrap items");
+    if (shopt == 'z') return QObject::tr("item size (format: width,height)");
+    return "";
+}
+
+static void printLine(const QString &msg)
+{
+    printf( (msg + "\n").toLocal8Bit().constData() );
+}
+
 /* print help and exit */
-void help(int exit_code) {
+static void help(int exit_code)
+{
     int len = sizeof(arguments)/sizeof(Argument);
 
-    printf( TR("usage: sprinter [options]\n") );
-    printf( TR("options:\n") );
+    printLine( QObject::tr("usage: sprinter [options]") );
+    printLine( QObject::tr("options:") );
     for ( int i = 0; i<len; ++i ) {
         const Argument &arg = arguments[i];
-        printf( "  -%c, --%-12s %s\n", arg.shopt, arg.opt, TR(arg.help) );
+        printf( "  -%c, --%-12s ", arg.shopt, arg.opt );
+        printLine(helpString(arg.shopt));
     }
     exit(exit_code);
 }
 
 // TODO: parse %s in command string
-void parseCommand(const char *cmd, QList<QByteArray> &args)
+static void parseCommand(const char *cmd, QList<QByteArray> &args)
 {
     QByteArray arg;
     bool quotes = false;
@@ -118,7 +140,7 @@ void parseCommand(const char *cmd, QList<QByteArray> &args)
     }
 }
 
-void parseArguments(int argc, char *argv[], Dialog &dialog,
+static void parseArguments(int argc, char *argv[], Dialog &dialog,
                     QList<QByteArray> &command_args)
 {
     int num, num2;
@@ -292,10 +314,6 @@ int main(int argc, char *argv[])
 {
     int exit_code;
     QList<QByteArray> command_args;
-
-#ifdef QT_DEBUG
-    qDebug("NOTE: Starting debug version.");
-#endif
 
     QApplication app(argc, argv);
     app.setQuitOnLastWindowClosed(false);

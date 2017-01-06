@@ -22,10 +22,10 @@
 
 #include <QDialog>
 
-class QSortFilterProxyModel;
-class QModelIndex;
 class ItemModel;
 class QItemSelection;
+class QModelIndex;
+class QSortFilterProxyModel;
 
 namespace Ui {
     class Dialog;
@@ -36,7 +36,7 @@ class Dialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit Dialog(QWidget *parent = 0);
+    explicit Dialog(QWidget *parent = NULL);
     ~Dialog();
 
     void setLabel(const QString &text);

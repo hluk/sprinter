@@ -24,48 +24,32 @@
 #include <QFont>
 #include <QPalette>
 #include <QStringList>
-#include <QTimer>
 
 #include <cstdio>
 #include <unistd.h>
 
 static const int stdin_batch_size = 250;
 
-ItemModel::ItemModel(QObject *parent) :
-    QAbstractListModel(parent),
-    m_count(0),
-    m_item_size(NULL)
+static void initSingleShotTimer(
+        QTimer *timer, int msecs, const QObject *receiver, const char *slot)
 {
-    m_items = new QStringList();
+    timer->setSingleShot(true);
+    timer->setInterval(msecs);
+    QObject::connect(timer, SIGNAL(timeout()), receiver, slot);
+    timer->start();
+}
 
+ItemModel::ItemModel(QObject *parent)
+    : QAbstractListModel(parent)
+    , m_count(0)
+{
     /* no buffer for stdin */
     setbuf(stdin, NULL);
 
     /* fetch lines from stdin - doesn't block application */
-    m_fetch_t = new QTimer(this);
-    m_fetch_t->setSingleShot(true);
-    m_fetch_t->setInterval(0);
-    connect( m_fetch_t, SIGNAL(timeout()),
-             this, SLOT(readStdin()) );
-    m_fetch_t->start();
-
+    initSingleShotTimer(&m_timerFetch, 0, this, SLOT(readStdin()));
     /* update list in intervals */
-    m_update_t = new QTimer(this);
-    m_update_t->setSingleShot(true);
-    m_update_t->setInterval(500);
-    connect( m_update_t, SIGNAL(timeout()),
-             this, SLOT(updateItems()) );
-    m_update_t->start();
-}
-
-ItemModel::~ItemModel()
-{
-    m_fetch_t->stop();
-    m_update_t->stop();
-    if (m_item_size)
-        delete m_item_size;
-
-    delete m_items;
+    initSingleShotTimer(&m_timerUpdate, 500, this, SLOT(updateItems()));
 }
 
 int ItemModel::rowCount(const QModelIndex &) const
@@ -78,16 +62,18 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const
     static QFileIconProvider icon_provider;
     int row = index.row();
 
-    if (role == Qt::DisplayRole || role == Qt::EditRole) {
-        return m_items->at(row);
-    } else if (role == Qt::DecorationRole) {
-        QFileInfo info( m_items->at(row) );
+    if (role == Qt::DisplayRole || role == Qt::EditRole)
+        return m_items.at(row);
+
+    if (role == Qt::SizeHintRole)
+        return m_itemSize;
+
+    if (role == Qt::DecorationRole) {
+        QFileInfo info( m_items.at(row) );
         if ( info.exists() ) {
             QIcon icon = icon_provider.icon(info);
             return icon;
         }
-    } else if (role == Qt::SizeHintRole && m_item_size){
-        return *m_item_size;
     }
 
     return QVariant();
@@ -95,22 +81,20 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const
 
 void ItemModel::setItemSize(QSize &size)
 {
-    if (m_item_size)
-        delete m_item_size;
-    m_item_size = new QSize(size);
+    m_itemSize = size;
 }
 
 bool ItemModel::canFetchMore(const QModelIndex &) const
 {
-    return ( m_count != m_items->size() );
+    return ( m_count != m_items.size() );
 }
 
 void ItemModel::fetchMore(const QModelIndex &)
 {
-    int rows = m_items->size();
+    int rows = m_items.size();
     if (m_count == rows) return;
 
-    beginInsertRows(QModelIndex(), m_count, rows-1);
+    beginInsertRows(QModelIndex(), m_count, rows - 1);
     m_count = rows;
     endInsertRows();
 }
@@ -152,7 +136,7 @@ void ItemModel::readStdin()
             /* each line is one item */
             if ( line.endsWith('\n') ) {
                 line.resize( line.size()-1 );
-                m_items->append( QString::fromLocal8Bit(line.constData()) );
+                m_items.append( QString::fromLocal8Bit(line.constData()) );
                 line.clear();
             }
         } else {
@@ -163,7 +147,7 @@ void ItemModel::readStdin()
     if ( ferror(stdin) )
         perror( tr("Error reading stdin!").toLocal8Bit().constData() );
     else if ( !feof(stdin) )
-        m_fetch_t->start();
+        m_timerFetch.start();
 }
 
 void ItemModel::updateItems()
@@ -171,5 +155,5 @@ void ItemModel::updateItems()
     if ( canFetchMore() )
         fetchMore();
     if ( !ferror(stdin) && !feof(stdin) )
-        m_update_t->start();
+        m_timerUpdate.start();
 }
